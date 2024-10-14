@@ -141,7 +141,7 @@ static int debug = 0;
 //
 // If you get a compile error here, then check you have made this change.
 
-extern uint8_t video_htiming_load_offset;
+uint8_t video_htiming_load_offset;
 
 typedef struct {
     int32_t v_active;
@@ -158,7 +158,7 @@ typedef struct {
     int32_t timing_scanline;
 } timing_state_t;
 
-extern timing_state_t timing_state;
+timing_state_t timing_state;
 
 static timing_state_t saved_timing_state;
 
