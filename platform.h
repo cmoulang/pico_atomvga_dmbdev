@@ -58,7 +58,10 @@
 #define CMD_LEN	16
 #define CMD_FONT	"FONT"
 
-#define ClearCommand()	memory[CMD_BASE]=0x00
+static inline void ClearCommand()
+{
+  eb_set(CMD_BASE,0x00);
+}
 
 // 6502 reset vector
 #define RESET_VEC 0xFFFC
@@ -119,7 +122,7 @@ volatile uint16_t    SAMBits;
 #define AS_MASK     0x80
 #define INTEXT_MASK 0x10
 
-#define GetIntExt(ch)   (memory[PIA_ADDR] & INTEXT_MASK) ? true : false;
+#define GetIntExt(ch)   (eb_get(PIA_ADDR) & INTEXT_MASK) ? true : false;
 
 #define DRAGON_CMD_ADDR     0xFF80
 #define DRAGON_FONTNO_ADDR  0xFF81

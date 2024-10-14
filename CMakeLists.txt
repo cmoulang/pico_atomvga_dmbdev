@@ -17,7 +17,10 @@ set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter" )
 add_executable(atomvga
   atomvga.c
   genlock.c
+  atom_if.c
   )
+
+pico_generate_pio_header(atomvga ${CMAKE_CURRENT_LIST_DIR}/sm.pio)
 
 pico_generate_pio_header(atomvga ${CMAKE_CURRENT_LIST_DIR}/atomvga.pio)
 
@@ -46,7 +49,10 @@ pico_set_binary_type(atomvga copy_to_ram)
 
 add_executable(atomvga_r65c02
   atomvga.c
+  atom_if.c
   )
+
+pico_generate_pio_header(atomvga_r65c02 ${CMAKE_CURRENT_LIST_DIR}/sm.pio)
 
 pico_generate_pio_header(atomvga_r65c02 ${CMAKE_CURRENT_LIST_DIR}/r65c02.pio)
 
@@ -76,8 +82,11 @@ pico_set_binary_type(atomvga_r65c02 copy_to_ram)
 add_executable(dragonvga
   atomvga.c
   eeprom.c
+  atom_if.c
   )
 
+pico_generate_pio_header(dragonvga ${CMAKE_CURRENT_LIST_DIR}/sm.pio)
+  
 pico_generate_pio_header(dragonvga ${CMAKE_CURRENT_LIST_DIR}/atomvga.pio)
 
 pico_generate_pio_header(dragonvga ${CMAKE_CURRENT_LIST_DIR}/atomvga_out.pio)

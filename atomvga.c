@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
+#include "atom_if.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -55,14 +56,6 @@ static genlock_mode_t genlock_setting = GENLOCK_OFF;
 
 #endif
 
-const uint LED_PIN = 25;
-const uint SEL1_PIN = test_PIN_SEL1;
-const uint SEL2_PIN = test_PIN_SEL1 + 1;
-const uint SEL3_PIN = test_PIN_SEL1 + 2;
-
-static PIO pio = pio1;
-//static uint8_t *fontdata = fontdata_6847;
-
 static uint32_t vga80_lut[128 * 4];
 
 volatile uint8_t fontno = DEFAULT_FONT;
@@ -84,27 +77,6 @@ static void initialiseIO()
     // Grab the uart pins back from the video function
     gpio_set_function(0, GPIO_FUNC_UART);
     gpio_set_function(1, GPIO_FUNC_UART);
-
-    // pins 2 to 9 are used to read the 6502 / 6809 bus - 8 bits at a time
-    for (uint pin = 2; pin <= 9; pin++)
-    {
-        gpio_init(pin);
-        gpio_set_dir(pin, false);
-        gpio_set_function(pin, GPIO_FUNC_PIO1);
-    }
-
-    // Output enable for the 74lvc245 buffers
-    gpio_pull_up(SEL1_PIN);
-    gpio_pull_up(SEL2_PIN);
-    gpio_pull_up(SEL3_PIN);
-
-    gpio_set_function(SEL1_PIN, GPIO_FUNC_PIO1);
-    gpio_set_function(SEL2_PIN, GPIO_FUNC_PIO1);
-    gpio_set_function(SEL3_PIN, GPIO_FUNC_PIO1);
-
-    // LED
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
 }
 
 void reset_vga80();
@@ -114,8 +86,6 @@ void core1_func();
 static semaphore_t video_initted;
 
 bool updated;
-
-volatile uint8_t memory[0x10000];
 
 #define CSI "\x1b["
 
@@ -127,18 +97,18 @@ void load_ee(void);
 int get_mode()
 {
 #if (PLATFORM == PLATFORM_ATOM)
-    return (memory[PIA_ADDR] & 0xf0) >> 4;
+    return (eb_get(PIA_ADDR) & 0xf0) >> 4;
 #elif (PLATFORM == PLATFORM_DRAGON)
-    return ((memory[PIA_ADDR] & 0x80) >> 7) | ((memory[PIA_ADDR] & 0x70) >> 3);
+    return ((eb_get(PIA_ADDR) & 0x80) >> 7) | ((eb_get(PIA_ADDR) & 0x70) >> 3);
 #endif
 }
 
-inline bool alt_colour()
+static inline bool alt_colour()
 {
 #if (PLATFORM == PLATFORM_ATOM)
-    return !!(memory[PIA_ADDR + 2] & 0x8);
+    return !!(eb_get(PIA_ADDR + 2) & 0x8);
 #elif (PLATFORM == PLATFORM_DRAGON)
-    return (memory[PIA_ADDR] & 0x08);
+    return (eb_get(PIA_ADDR) & 0x08);
 #endif
 }
 
@@ -233,9 +203,12 @@ void update_debug_text()
 bool is_command(char *cmd,
                 char **params)
 {
-    char *p = (char *)memory + CMD_BASE;
-    *params=(char *)NULL;   
-    
+    const size_t buff_size = 30;
+    char buffer[buff_size];
+    eb_get_chars(buffer, buff_size, CMD_BASE);
+    char *p = (char *)buffer;
+    *params = (char *)NULL;
+
     while (*cmd != 0)
     {
         if (*cmd++ != *p++)
@@ -299,125 +272,101 @@ void switch_colour(uint8_t          newcolour,
 
 volatile bool support_lower = false;
 
-#if (R65C02 == 1)
-// DMB: no need to specify __no_inline_not_in_flash_func as CMakeLists.txt
-// specifies pico_set_binary_type(TARGET copy_to_ram) for all targets
-void main_loop()
+// #if (R65C02 == 1)
+// #else
+
+// // DMB: no need to specify __no_inline_not_in_flash_func as CMakeLists.txt
+// // specifies pico_set_binary_type(TARGET copy_to_ram) for all targets
+// void main_loop()
+// {
+//     static uint16_t    last = 0;
+
+//     while (true)
+//     {
+//         // Get event from SM 0
+//         u_int32_t reg = pio_sm_get_blocking(pio, 0);
+
+//         // Is it a read or write opertaion?
+//         if (!(reg & 0x1000000))
+//         {
+//             // Get the address
+//             u_int16_t address = reg;
+//             // read
+//             if (address == COL80_STAT)
+//             {
+//                 uint8_t b = 0x12;
+//                 pio_sm_put(pio, 1, 0xFF00 | b);
+//             }
+//             else if ((address & COL80_MASK) == COL80_BASE)
+//             {
+//                 uint8_t b = eb_get(address);
+//                 pio_sm_put(pio, 1, 0xFF00 | b);
+//             }
+
+//             // Check for reset vector fetch, if so flag reset
+//             if ((RESET_VEC+1 == address) && (RESET_VEC == last))
+//             {
+//                 reset_flag = true;
+//             }   
+//             last = address; 
+//         }
+//         else
+//         {
+//             // Get the address
+//             u_int16_t address = reg & 0xFFFF;
+//             // write
+//             u_int8_t data = (reg & 0xFF0000) >> 16;
+//             eb_set(address, data);
+// #if (PLATFORM == PLATFORM_DRAGON)
+//             // Update SAM bits when written to
+//             if ((address >= SAM_BASE) && (address <= SAM_END))
+//             {
+//                 uint8_t     sam_data = GetSAMData(address);
+//                 uint16_t    sam_mask = GetSAMDataMask(address);
+
+//                 if (sam_data)
+//                 {
+//                     SAMBits |= sam_mask;
+//                 }
+//                 else
+//                 {
+//                     SAMBits &= ~sam_mask;
+//                 }
+//             }
+
+//             // Change the font as requested
+//             if (DRAGON_FONTNO_ADDR == address)
+//             {
+//                 switch_font(data);
+//             }
+
+//             if (DRAGON_INK_ADDR == address)
+//             {
+//                 switch_colour(data,&ink);
+//             }
+
+//             if (DRAGON_PAPER_ADDR == address)
+//             {
+//                 switch_colour(data,&paper);
+//             }
+
+//             if (DRAGON_INKALT_ADDR == address)
+//             {
+//                 switch_colour(data,&ink_alt);
+//             }
+// #endif
+//         }
+//     }
+// }
+// #endif
+
+
+void print_str(int line_num, char *str)
 {
-    while (true)
-    {
-        // Get event from SM 0
-        u_int32_t reg = pio_sm_get_blocking(pio, 0);
-
-        // Is it a read to the COL80 I/O space?
-        if ((reg & (0x1000000 | COL80_MASK)) == COL80_BASE)
-        {
-            // read
-            pio_sm_put(pio, 1, 0xFF00 | memory[reg]);
-        }
-        else if (reg & 0x1000000)
-        {
-            // write
-            u_int16_t address = reg & 0xFFFF;
-
-            u_int8_t data = (reg & 0xFF0000) >> 16;
-            memory[address] = data;
-        }
-    }
-}
-#else
-
-// DMB: no need to specify __no_inline_not_in_flash_func as CMakeLists.txt
-// specifies pico_set_binary_type(TARGET copy_to_ram) for all targets
-void main_loop()
-{
-    static uint16_t    last = 0;
-
-    while (true)
-    {
-        // Get event from SM 0
-        u_int32_t reg = pio_sm_get_blocking(pio, 0);
-
-        // Is it a read or write opertaion?
-        if (!(reg & 0x1000000))
-        {
-            // Get the address
-            u_int16_t address = reg;
-            // read
-            if (address == COL80_STAT)
-            {
-                uint8_t b = 0x12;
-                pio_sm_put(pio, 1, 0xFF00 | b);
-            }
-            else if ((address & COL80_MASK) == COL80_BASE)
-            {
-                uint8_t b = memory[address];
-                pio_sm_put(pio, 1, 0xFF00 | b);
-            }
-
-            // Check for reset vector fetch, if so flag reset
-            if ((RESET_VEC+1 == address) && (RESET_VEC == last))
-            {
-                reset_flag = true;
-            }   
-            last = address; 
-        }
-        else
-        {
-            // Get the address
-            u_int16_t address = reg & 0xFFFF;
-            // write
-            u_int8_t data = (reg & 0xFF0000) >> 16;
-            memory[address] = data;
-#if (PLATFORM == PLATFORM_DRAGON)
-            // Update SAM bits when written to
-            if ((address >= SAM_BASE) && (address <= SAM_END))
-            {
-                uint8_t     sam_data = GetSAMData(address);
-                uint16_t    sam_mask = GetSAMDataMask(address);
-
-                if (sam_data)
-                {
-                    SAMBits |= sam_mask;
-                }
-                else
-                {
-                    SAMBits &= ~sam_mask;
-                }
-            }
-
-            // Change the font as requested
-            if (DRAGON_FONTNO_ADDR == address)
-            {
-                switch_font(data);
-            }
-
-            if (DRAGON_INK_ADDR == address)
-            {
-                switch_colour(data,&ink);
-            }
-
-            if (DRAGON_PAPER_ADDR == address)
-            {
-                switch_colour(data,&paper);
-            }
-
-            if (DRAGON_INKALT_ADDR == address)
-            {
-                switch_colour(data,&ink_alt);
-            }
-#endif
-        }
-    }
-}
-#endif
-
-void print_str(int line_num, char* str)
-{
+    printf("%s\n", str);
     set_debug_text(str);
-    memcpy((char *)(memory + GetVidMemBase() + 0x020*line_num), debug_text, 32);
+    eb_set_chars(GetVidMemBase() + 0x020 * line_num, debug_text, 32);
 }
-
 
 void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, uint post_div2) {
     if (!running_on_fpga()) {
@@ -479,12 +428,9 @@ int main(void)
         load_ee();
     }
 #endif
-    
-    memset((void *)memory, 0, 0x10000);
-    for (int i = GetVidMemBase(); i < GetVidMemBase() + 0x200; i++)
-    {
-        memory[i] = VDG_SPACE;
-    }
+   
+    eb_memset(0, 0, 0x10000);
+    eb_memset(GetVidMemBase(), VDG_SPACE, 0x200);
 
     char mess[32];
 
@@ -494,7 +440,7 @@ int main(void)
     snprintf(mess, 32, "BASE=%04X, PIA=%04X", GetVidMemBase(), PIA_ADDR);
     print_str(6, mess);
 #if (R65C02 == 1)
-    print_str(7, "R65C02 VERSION");
+    print_str(7, "R65C02 DMA VERSION");
 #endif
 
 
@@ -507,17 +453,17 @@ int main(void)
     // wait for initialization of video to be complete
     sem_acquire_blocking(&video_initted);
 
-    //initialiseIO();
+     // set read and write permissions
+    eb_set_perm(0, EB_PERM_NO_ACCESS, 0x10000);
+    eb_set_perm(FB_ADDR, EB_PERM_WRITE_ONLY, VID_MEM_SIZE);
+    eb_set_perm(COL80_BASE, EB_PERM_READ_WRITE, 16);
+    eb_set_perm_byte(PIA_ADDR, EB_PERM_WRITE_ONLY);
 
-    uint offset = pio_add_program(pio, &test_program);
-    test_program_init(pio, 0, offset);
-    pio_sm_set_enabled(pio, 0, true);
+    eb_init(pio1);
+    for (;;)
+    {
 
-    offset = pio_add_program(pio, &atomvga_out_program);
-    atomvga_out_program_init(pio, 1, offset);
-    pio_sm_set_enabled(pio, 1, true);
-
-    main_loop();
+    }
 }
 
 #if (PLATFORM == PLATFORM_ATOM)
@@ -589,7 +535,7 @@ void check_command()
     }
     else if (is_command("80COL",&params))
     {
-        memory[COL80_BASE] = COL80_ON;
+        eb_set(COL80_BASE, COL80_ON);
         ClearCommand();
     }
 #ifdef GENLOCK
@@ -653,7 +599,7 @@ void set_auto(uint8_t state)
 void check_command()
 {
     static uint8_t oldcommand = 0;
-    uint8_t command = memory[DRAGON_CMD_ADDR];
+    uint8_t command = eb_get(DRAGON_CMD_ADDR);
 
     if(command != oldcommand)
     {
@@ -753,7 +699,7 @@ uint16_t *add_border(uint16_t *p, uint16_t border_colour, uint16_t len)
 //
 
 // Changed parameter memory to be called vdu_base to avoid clash with global memory -- PHS
-uint16_t *do_text(scanvideo_scanline_buffer_t *buffer, uint relative_line_num, char *vdu_base, uint16_t *p, bool is_debug)
+uint16_t *do_text(scanvideo_scanline_buffer_t *buffer, uint relative_line_num, size_t vdu_base, uint16_t *p, bool is_debug)
 {
     // Screen is 16 rows x 32 columns
     // Each char is 12 x 8 pixels
@@ -773,7 +719,7 @@ uint16_t *do_text(scanvideo_scanline_buffer_t *buffer, uint relative_line_num, c
         for (int col = 0; col < 32; col++)
         {
             // Get character data from RAM and extract inv,ag,int/ext
-            uint ch = vdu_base[vdu_address + col];
+            uint ch = eb_get(vdu_base + vdu_address + col);
             bool inv    = (ch & INV_MASK) ? true : false;
             bool as     = (ch & AS_MASK) ? true : false;
             bool intext = GetIntExt(ch);
@@ -900,13 +846,13 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
 
         if (line_num >= debug_start && line_num < debug_end)    // Debug in 'text' mode
         {
-            p = do_text(buffer, line_num - debug_start, debug_text, p, true);
+            // p = do_text(buffer, line_num - debug_start, debug_text, p, true);
         }
         else if (!(mode & 1))                                   // Alphanumeric or Semigraphics
         {
             if (relative_line_num >= 0 && relative_line_num < (16 * 24))
             {
-                p = do_text(buffer, relative_line_num, (char *)memory + GetVidMemBase(), p, false);
+                p = do_text(buffer, relative_line_num, GetVidMemBase(), p, false);
             }
         }
         else                                                    // Grapics modes
@@ -916,7 +862,7 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
             if (relative_line_num >= 0 && relative_line_num < height)
             {
                 uint vdu_address = GetVidMemBase() + bytes_per_row(mode) * relative_line_num;
-                uint32_t *bp = (uint32_t *)memory + vdu_address / 4;
+                size_t bp = vdu_address;
 
                 *p++ = COMPOSABLE_RAW_RUN;
                 *p++ = border_colour;
@@ -935,7 +881,8 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
                     {
                         if ((pixel % 16) == 0)
                         {
-                            word = __builtin_bswap32(*bp++);
+                            word = eb_get32(bp);
+                            bp += 4;
                         }
                         uint x = (word >> 30) & 0b11;
                         uint16_t colour=palette[x];
@@ -965,7 +912,8 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
                     uint16_t fg = palette[0];
                     for (uint i = 0; i < pixel_count / 32; i++)
                     {
-                        const uint32_t b = __builtin_bswap32(*bp++);
+                        const uint32_t b = eb_get32(bp);
+                        bp += 4;
                         if (pixel_count == 256)
                         {
                             if (0 == artifact)
@@ -1068,11 +1016,10 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
 
 void reset_vga80()
 {
-    memory[COL80_BASE] = COL80_OFF;     // Normal text mode (vga80 off)
-    memory[COL80_FG] = 0xB2;            // Foreground Green
-    memory[COL80_BG] = 0x00;            // Background Black
-    memory[COL80_STAT] = 0x12;
-    
+    eb_set(COL80_BASE, COL80_OFF);
+    eb_set(COL80_FG, 0xB2);
+    eb_set(COL80_BG, 0x00);
+    eb_set(COL80_STAT, 0x12);
 }
 
 void initialize_vga80()
@@ -1103,11 +1050,11 @@ uint16_t *do_text_vga80(scanvideo_scanline_buffer_t *buffer, uint relative_line_
     if (row < 40)
     {
         // Compute the start address of the current row in the Atom framebuffer
-        volatile uint8_t *char_addr = memory + GetVidMemBase() + 80 * row;
+        uint char_addr = GetVidMemBase() + 80 * row;
 
         // Read the VGA80 control registers
-        uint vga80_ctrl1 = memory[COL80_FG];
-        uint vga80_ctrl2 = memory[COL80_BG];
+        uint vga80_ctrl1 = eb_get(COL80_FG);
+        uint vga80_ctrl2 = eb_get(COL80_BG);
 
         *p++ = COMPOSABLE_RAW_RUN;
         *p++ = BLACK;       // Extra black pixel
@@ -1121,7 +1068,7 @@ uint16_t *do_text_vga80(scanvideo_scanline_buffer_t *buffer, uint relative_line_
         if (vga80_ctrl1 & 0x08)
         {
             // Attribute mode enabled, attributes follow the characters in the frame buffer
-            volatile uint8_t *attr_addr = char_addr + 80 * 40;
+            uint attr_addr = char_addr + 80 * 40;
             uint shift = (sub_row >> 1) & 0x06; // 0, 2 or 4
             // Compute these outside of the for loop for efficiency
             uint smask0 = 0x10 >> shift;
@@ -1129,8 +1076,8 @@ uint16_t *do_text_vga80(scanvideo_scanline_buffer_t *buffer, uint relative_line_
             uint ulmask = (sub_row == 10) ? 0xFF : 0x00;
             for (int col = 0; col < 80; col++)
             {
-                uint ch = *char_addr++;
-                uint attr = *attr_addr++;
+                uint ch = eb_get(char_addr++);
+                uint attr = eb_get(attr_addr++);
                 uint32_t *vp = vga80_lut + ((attr & 0x77) << 2);
                 if (attr & 0x80)
                 {
@@ -1176,7 +1123,7 @@ uint16_t *do_text_vga80(scanvideo_scanline_buffer_t *buffer, uint relative_line_
             uint32_t *vp = vga80_lut + (attr << 2);
             for (int col = 0; col < 80; col++)
             {
-                uint ch     = *char_addr++;
+                uint ch     = eb_get(char_addr++);
                 bool inv    = (ch & INV_MASK) ? true : false;
             
 #if (PLATFORM == PLATFORM_DRAGON)
@@ -1251,7 +1198,7 @@ void core1_func()
     uint last_vga80 = -1;
     while (true)
     {
-        uint vga80 = memory[COL80_BASE] & COL80_ON;
+        uint vga80 = eb_get(COL80_BASE) & COL80_ON;
         scanvideo_scanline_buffer_t *scanline_buffer = scanvideo_begin_scanline_generation(true);
         if (vga80)
         {
