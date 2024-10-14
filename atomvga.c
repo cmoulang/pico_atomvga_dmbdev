@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 #include "atom_if.h"
+#include "sound.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -460,6 +461,8 @@ int main(void)
     eb_set_perm_byte(PIA_ADDR, EB_PERM_WRITE_ONLY);
 
     eb_init(pio1);
+    sc_init();
+
     for (;;)
     {
 
