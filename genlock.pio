@@ -15,8 +15,8 @@ wait_for_atom_fs_high:
     jmp x-- wait_for_atom_fs_high                      ; decrement the X counter and loop back (x should not wrap)
 
 wait_for_atom_fs_low:
-    jmp x-- next                                       ; decrement the X counter
-next:
+    jmp x-- dummy                                      ; decrement the X counter
+dummy:
     jmp pin wait_for_atom_fs_low                       ; loop back while Atom FS still high   
     in x 32                                            ; push the count to the RxFIFO
 .wrap    
