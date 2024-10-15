@@ -83,7 +83,7 @@ a15_hi:
 .program eb2_access
 ; receives a 16bit word containg read/write flags + data from DMA
 ; if read && read-eabled is set then outputs data to 6502 bus
-; if write && not-wite-enabled is clear then gets data from 6502 bus and pushes to DMA
+; if write && wite-enabled is set then gets data from 6502 bus and pushes to DMA
 .side_set 3 opt
 .wrap_target
 loop:
