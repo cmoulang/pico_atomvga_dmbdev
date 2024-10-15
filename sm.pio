@@ -92,15 +92,24 @@ loop:
         out     y, 1                     ; get the read-enabled flag
         jmp     pin, read                ; jmp if 6502 read
 ; Process 6502 write
-        out     y, 1                     ; get the not-write-enabled flag
-        jmp     y--, loop                ; jmp if no write access to this address
+write:
+        out     y, 1                     ; get the write-enabled flag
+        jmp     !y, loop                 ; jmp if no write access to this address
         wait 1 gpio PIN_1MHZ  side DATA
         wait 0 gpio PIN_1MHZ             ; wait for 1 -> 0
         in      pins 8
         jmp     loop
 read:
 ; Process 6502 read
-        jmp     !y, loop                 ; jmp if no read access to this address
+        jmp     !y, snoop                ; jmp if no read access to this address
         mov     osr, !null
         out     pindirs 8     side DATA
+        jmp loop
+;
+; BIG NOTE
+; We don't have GPIO control of the DIR pin on the data mux ic 
+; so we can't snoop the data bus when the 6502 reads from a peripheral
+snoop:                                   
+        out     y, 1
+        jmp     write
 .wrap

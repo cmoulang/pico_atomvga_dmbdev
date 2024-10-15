@@ -455,17 +455,19 @@ int main(void)
     sem_acquire_blocking(&video_initted);
 
      // set read and write permissions
-    eb_set_perm(0, EB_PERM_NO_ACCESS, 0x10000);
+    eb_set_perm(0, EB_PERM_NONE, 0x10000);
     eb_set_perm(FB_ADDR, EB_PERM_WRITE_ONLY, VID_MEM_SIZE);
     eb_set_perm(COL80_BASE, EB_PERM_READ_WRITE, 16);
     eb_set_perm_byte(PIA_ADDR, EB_PERM_WRITE_ONLY);
+    eb_set_perm_byte(PIA_ADDR+2, EB_PERM_WRITE_ONLY);
 
     eb_init(pio1);
     sc_init();
 
     for (;;)
     {
-
+        sleep_ms(1000);
+        printf("%b\n", eb_get(PIA_ADDR+2));
     }
 }
 

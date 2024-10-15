@@ -10,12 +10,24 @@
 #define EB_BUFFER_SIZE 0x10000
 #define EB_65C02_MAGIC_NUMBER 0x65C02
 
+// set to 1 to enable snooping reads to 6502 peripherals
+// NB: not possible with existing mux 
+#define EB_CAN_SNOOP 0 
+
+#define _EB_WRITE_FLAG 0b010
+#define _EB_READ_FLAG 0b001
+#define _EB_SNOOP_FLAG 0b100
+
 enum eb_perm
 {
-    EB_PERM_WRITE_ONLY = 0b00,
-    EB_PERM_READ_WRITE = 0b01,
-    EB_PERM_NO_ACCESS = 0b10,
-    EB_PERM_READ_ONLY = 0b11,
+    EB_PERM_NONE = 0,
+    EB_PERM_READ_ONLY = _EB_READ_FLAG,
+    EB_PERM_WRITE_ONLY = _EB_WRITE_FLAG,
+    EB_PERM_READ_WRITE = (_EB_WRITE_FLAG | _EB_READ_FLAG),
+#if EB_CAN_SNOOP==1
+    EB_PERM_SNOOP_ONLY = _EB_SNOOP_FLAG,
+    EB_PERM_WRITE_SNOOP = (_EB_WRITE_FLAG | _EB_SNOOP_FLAG)
+#endif
 };
 
 extern volatile _Alignas(EB_BUFFER_SIZE) uint8_t _eb_memory[EB_BUFFER_SIZE * 2];
