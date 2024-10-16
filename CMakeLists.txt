@@ -51,6 +51,16 @@ pico_set_binary_type(atomvga copy_to_ram)
 add_executable(atomvga_r65c02
   atomvga.c
   atom_if.c
+  atom_sid.cc
+  reSID16/envelope.cc
+  reSID16/extfilt.cc
+  reSID16/pot.cc
+  reSID16/filter.cc
+  reSID16/sid.cc
+  reSID16/voice.cc
+  reSID16/wave.cc
+  #reSIDWrapper.cc
+
   )
 
 pico_generate_pio_header(atomvga_r65c02 ${CMAKE_CURRENT_LIST_DIR}/sm.pio)
@@ -69,13 +79,14 @@ target_link_libraries(atomvga_r65c02 PRIVATE
   pico_scanvideo_dpi
   hardware_pio
   hardware_pwm
+
   )
 
 pico_add_extra_outputs(atomvga_r65c02)
 
 pico_enable_stdio_uart(atomvga_r65c02 1)
 
-pico_set_binary_type(atomvga_r65c02 copy_to_ram)
+#pico_set_binary_type(atomvga_r65c02 copy_to_ram)
 
 #
 # Dragon Build

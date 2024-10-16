@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
+#include "atom_sid.h"
 #include "atom_if.h"
 #include "sound.h"
 
@@ -492,6 +493,7 @@ int main(void)
     eb_set_perm(0xF000, EB_PERM_WRITE_ONLY, 0x20);
 
     eb_init(pio1);
+    initReSID();
     sc_init();
 
     eb_set_exclusive_handler(event_handler);
