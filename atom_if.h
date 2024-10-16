@@ -5,6 +5,7 @@
 #include "hardware/pio.h"
 #include "hardware/watchdog.h"
 #include "sm.pio.h"
+#include <string.h>
 
 #define EB_ADD_BITS 16
 #define EB_BUFFER_SIZE 0x10000
@@ -107,7 +108,7 @@ static inline void eb_get_chars(char *buffer, size_t size, uint16_t address)
 /// @param address 6502 destination address
 /// @param buffer source
 /// @param size number of chars to copy
-static inline void eb_set_chars(uint16_t address, char *buffer, size_t size)
+static inline void eb_set_chars(uint16_t address, const char *buffer, size_t size)
 {
     hard_assert(address + size <= EB_BUFFER_SIZE);
     for (size_t i = 0; i < size; i++)
@@ -115,6 +116,15 @@ static inline void eb_set_chars(uint16_t address, char *buffer, size_t size)
         eb_set(address + i, buffer[i]);
     }
 }
+
+/// @brief copy a null terminated string to memory
+/// @param address 6502 destination address
+/// @param str source
+static inline void eb_set_string(uint16_t address, const char *str)
+{
+    eb_set_chars(address, str, strlen(str));
+}
+
 
 /// @brief copies a value to each location starting at address
 /// @param address the address to start at
@@ -132,6 +142,13 @@ static inline void eb_memset(uint16_t address, char c, size_t size)
 /// @brief get the DMA channel that writes to the event queue
 /// @return the DMA channel number
 uint eb_get_event_chan();
+
+/*! \brief Set an exclusive iterrupt handler for a 6502 write event 
+ *
+ * 
+ * \param handler The handler to set.
+*/
+void  eb_set_exclusive_handler(irq_handler_t handler);
 
 /// @brief get the next 6502 address from the event queue
 /// @return 16-bit 6502 address, -1 indicates the queue is empty

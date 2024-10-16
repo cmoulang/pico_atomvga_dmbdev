@@ -35,6 +35,11 @@
 #include "eeprom.h"
 #endif
 
+
+#define YARRB_REG0 0xBFFE
+#define YARRB_4MHZ 0x20
+
+
 // PIA and frambuffer address moved into platform.h -- PHS
 
 #ifdef GENLOCK
@@ -200,14 +205,15 @@ void update_debug_text()
     }
 }
 
+#define _command_buffer_length 30
+char _command_buffer[_command_buffer_length];
+
 #if (PLATFORM == PLATFORM_ATOM)
 bool is_command(char *cmd,
                 char **params)
 {
-    const size_t buff_size = 30;
-    char buffer[buff_size];
-    eb_get_chars(buffer, buff_size, CMD_BASE);
-    char *p = (char *)buffer;
+    eb_get_chars(_command_buffer, _command_buffer_length, CMD_BASE);
+    char *p = (char *)_command_buffer;
     *params = (char *)NULL;
 
     while (*cmd != 0)
@@ -402,6 +408,27 @@ void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, ui
     }
 }
 
+void event_handler()
+{
+    dma_hw->ints1 = 1u << eb_get_event_chan();
+    int address = eb_get_event();
+    while (address > 0)
+    {
+        uint8_t x = eb_get(address);
+        if (address == YARRB_REG0)
+        {
+            if ((x & YARRB_4MHZ) && (watchdog_hw->scratch[0] != EB_65C02_MAGIC_NUMBER))
+            {
+                // Stop the 6502 interface, set the magic number and reboot in 65C02 mode
+                eb_shutdown();
+                watchdog_hw->scratch[0] = EB_65C02_MAGIC_NUMBER;
+                watchdog_enable(1, false);
+            }
+        }
+        address = eb_get_event();
+    }
+}
+
 int main(void)
 {
     uint sys_freq = SYS_FREQ;
@@ -440,9 +467,11 @@ int main(void)
     print_str(5, __DATE__ " " __TIME__);
     snprintf(mess, 32, "BASE=%04X, PIA=%04X", GetVidMemBase(), PIA_ADDR);
     print_str(6, mess);
-#if (R65C02 == 1)
-    print_str(7, "R65C02 DMA VERSION");
-#endif
+    print_str(7, "DMA VERSION");
+    if (watchdog_hw->scratch[0] == EB_65C02_MAGIC_NUMBER)
+    {
+        print_str(8, "R65C02/4MHZ MODE");
+    }
 
 
     // create a semaphore to be posted when video init is complete
@@ -459,15 +488,20 @@ int main(void)
     eb_set_perm(FB_ADDR, EB_PERM_WRITE_ONLY, VID_MEM_SIZE);
     eb_set_perm(COL80_BASE, EB_PERM_READ_WRITE, 16);
     eb_set_perm_byte(PIA_ADDR, EB_PERM_WRITE_ONLY);
-    eb_set_perm_byte(PIA_ADDR+2, EB_PERM_WRITE_ONLY);
+    eb_set_perm_byte(YARRB_REG0, EB_PERM_WRITE_ONLY);
+    eb_set_perm(0xF000, EB_PERM_WRITE_ONLY, 0x20);
 
     eb_init(pio1);
     sc_init();
 
-    for (;;)
+    eb_set_exclusive_handler(event_handler);
+
+    // The VGA generation is running on the other core and
+    // the SID emulation is interrupt driven, so there is
+    // spare cpu capacity to do something useful here!
+    while (1)
     {
-        sleep_ms(1000);
-        printf("%b\n", eb_get(PIA_ADDR+2));
+        tight_loop_contents(); // nop
     }
 }
 
@@ -477,7 +511,18 @@ void check_command()
     char    *params = (char *)NULL;
     int temp;
 
-    if (is_command("DEBUG",&params))
+    if (is_command("RAM",&params))
+    {
+        eb_set_perm(0xA00, EB_PERM_READ_WRITE, 0x100);
+        ClearCommand();
+    }
+    else if (is_command("ROM",&params))
+    {
+        eb_set_perm(0xA00, EB_PERM_READ_ONLY, 0x100);
+        eb_set_string(0xA00, "ROM DEMO - #A00-#AFF IS NOW CONTROLLED BY THE PICO\r");
+        ClearCommand();
+    }
+    else if (is_command("DEBUG",&params))
     {
         debug = true;
         ClearCommand();

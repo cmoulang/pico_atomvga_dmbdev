@@ -194,13 +194,22 @@ void eb_init(PIO pio) //, irq_handler_t handler)
 void eb_shutdown()
 {
     pio_sm_set_enabled(eb_pio, eb2_access_sm, false);
-    sleep_us(1);
-    pio_sm_set_enabled(eb_pio, eb2_address_sm, false);
 }
 
 uint eb_get_event_chan()
 {
     return eb_event_chan;
+}
+
+void eb_set_exclusive_handler(irq_handler_t handler)
+{
+    // Tell the DMA to raise IRQ line 1 when the eb_event_chan finishes copying the address
+    dma_channel_set_irq1_enabled(eb_event_chan, true);
+
+    // Configure the processor to run dma_handler() when DMA IRQ 1 is asserted
+    irq_set_exclusive_handler(DMA_IRQ_1, handler);
+    irq_set_enabled(DMA_IRQ_1, true);
+    dma_hw->ints1 = 1u << eb_event_chan;
 }
 
 int eb_get_event()
