@@ -6,14 +6,15 @@
 #include "hardware/watchdog.h"
 #include "sm.pio.h"
 #include <string.h>
+#include <stdio.h>
 
 #define EB_ADD_BITS 16
-#define EB_BUFFER_SIZE 0x10000
+#define EB_BUFFER_LENGTH 0x10000
 #define EB_65C02_MAGIC_NUMBER 0x65C02
 
 // set to 1 to enable snooping reads to 6502 peripherals
-// NB: not possible with existing mux 
-#define EB_CAN_SNOOP 0 
+// NB: not possible with existing mux
+#define EB_CAN_SNOOP 0
 
 #define _EB_WRITE_FLAG 0b010
 #define _EB_READ_FLAG 0b001
@@ -25,18 +26,17 @@ enum eb_perm
     EB_PERM_READ_ONLY = _EB_READ_FLAG,
     EB_PERM_WRITE_ONLY = _EB_WRITE_FLAG,
     EB_PERM_READ_WRITE = (_EB_WRITE_FLAG | _EB_READ_FLAG),
-#if EB_CAN_SNOOP==1
+#if EB_CAN_SNOOP == 1
     EB_PERM_SNOOP_ONLY = _EB_SNOOP_FLAG,
     EB_PERM_WRITE_SNOOP = (_EB_WRITE_FLAG | _EB_SNOOP_FLAG)
 #endif
 };
 
-extern volatile _Alignas(EB_BUFFER_SIZE) uint8_t _eb_memory[EB_BUFFER_SIZE * 2];
+extern volatile _Alignas(EB_BUFFER_LENGTH * 2) uint16_t _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
 
 /// @brief initialise and start the PIO and DMA interface to the 6502 bus
 /// @param pio the pio instance to use
 void eb_init(PIO pio);
-
 
 /// @brief shutdown the 6502 bus interface prior to reset
 void eb_shutdown();
@@ -46,7 +46,8 @@ void eb_shutdown();
 /// @param  perm see enum for possible values
 static inline void eb_set_perm_byte(uint16_t address, enum eb_perm perm)
 {
-    _eb_memory[address * 2 + 1] = perm;
+    volatile uint8_t *p = (uint8_t *)&_eb_memory[address] + 1;
+    *p = perm;
 }
 
 /// @brief set the read/write permissions for a range of addresses
@@ -55,7 +56,7 @@ static inline void eb_set_perm_byte(uint16_t address, enum eb_perm perm)
 /// @param size number of bytes to set
 static inline void eb_set_perm(uint16_t start, enum eb_perm perm, size_t size)
 {
-    hard_assert(start + size <= EB_BUFFER_SIZE);
+    hard_assert(start + size <= EB_BUFFER_LENGTH);
     for (size_t i = start; i < start + size; i++)
     {
         eb_set_perm_byte(i, perm);
@@ -67,7 +68,7 @@ static inline void eb_set_perm(uint16_t start, enum eb_perm perm, size_t size)
 /// @return the value of the byte
 static inline uint8_t eb_get(uint16_t address)
 {
-    return _eb_memory[address * 2];
+    return _eb_memory[address] & 0xFF;
 }
 
 /// @brief get a 32 bit value
@@ -76,10 +77,10 @@ static inline uint8_t eb_get(uint16_t address)
 static inline uint32_t eb_get32(uint16_t address)
 {
     uint32_t result =
-        (_eb_memory[address * 2] << 24) +
-        (_eb_memory[address * 2 + 2] << 16) +
-        (_eb_memory[address * 2 + 4] << 8) +
-        (_eb_memory[address * 2 + 6] << 0);
+        (eb_get(address) << 24) +
+        (eb_get(address + 1) << 16) +
+        (eb_get(address + 2) << 8) +
+        (eb_get(address + 3));
 
     return result;
 }
@@ -89,7 +90,8 @@ static inline uint32_t eb_get32(uint16_t address)
 /// @param value the new value
 static inline void eb_set(uint16_t address, unsigned char value)
 {
-    _eb_memory[address * 2] = value;
+    volatile uint8_t *p = (uint8_t *)&_eb_memory[address];
+    *p = value;
 }
 
 /// @brief get a string of chars
@@ -110,7 +112,7 @@ static inline void eb_get_chars(char *buffer, size_t size, uint16_t address)
 /// @param size number of chars to copy
 static inline void eb_set_chars(uint16_t address, const char *buffer, size_t size)
 {
-    hard_assert(address + size <= EB_BUFFER_SIZE);
+    hard_assert(address + size <= EB_BUFFER_LENGTH);
     for (size_t i = 0; i < size; i++)
     {
         eb_set(address + i, buffer[i]);
@@ -125,14 +127,13 @@ static inline void eb_set_string(uint16_t address, const char *str)
     eb_set_chars(address, str, strlen(str));
 }
 
-
 /// @brief copies a value to each location starting at address
 /// @param address the address to start at
 /// @param c the value to copy
 /// @param size the number of loactions to set
 static inline void eb_memset(uint16_t address, char c, size_t size)
 {
-    hard_assert(address + size <= EB_BUFFER_SIZE);
+    hard_assert(address + size <= EB_BUFFER_LENGTH);
     for (size_t i = address; i < address + size; i++)
     {
         eb_set(i, c);
@@ -143,12 +144,12 @@ static inline void eb_memset(uint16_t address, char c, size_t size)
 /// @return the DMA channel number
 uint eb_get_event_chan();
 
-/*! \brief Set an exclusive iterrupt handler for a 6502 write event 
+/*! \brief Set an exclusive iterrupt handler for a 6502 write event
  *
- * 
+ *
  * \param handler The handler to set.
-*/
-void  eb_set_exclusive_handler(irq_handler_t handler);
+ */
+void eb_set_exclusive_handler(irq_handler_t handler);
 
 /// @brief get the next 6502 address from the event queue
 /// @return 16-bit 6502 address, -1 indicates the queue is empty

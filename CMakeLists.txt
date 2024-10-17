@@ -77,6 +77,8 @@ pico_enable_stdio_uart(atomvga_r65c02 1)
 
 pico_set_binary_type(atomvga_r65c02 copy_to_ram)
 
+pico_set_linker_script(atomvga_r65c02 ${CMAKE_CURRENT_LIST_DIR}/memmap_copy_to_ram.ld)
+
 #
 # Dragon Build
 #

@@ -1,6 +1,6 @@
 #include "atom_if.h"
 
-volatile _Alignas(EB_BUFFER_SIZE) uint8_t _eb_memory[EB_BUFFER_SIZE * 2];
+volatile _Alignas(EB_BUFFER_LENGTH*2) uint16_t _eb_memory[EB_BUFFER_LENGTH] __attribute__ ((section (".uninitialized_dma_buffer")));
 
 #define EB_EVENT_QUEUE_BITS 5
 #define EB_EVENT_QUEUE_LEN ((1 << EB_EVENT_QUEUE_BITS) / __SIZEOF_INT__)
@@ -56,11 +56,10 @@ static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
     sm_config_set_sideset(&c, 4, true, false);
     sm_config_set_sideset_pins(&c, PIN_MUX_DATA);
 
-    sm_config_set_in_shift(&c, false, true, 16);
+    sm_config_set_in_shift(&c, false, true, 17);
 
-    // Calculate address for low and high 64K chunks: 0x20012002 on rp2040
-    uint address = (uint)&_eb_memory >> 16;
-    address = (address << 16) | (address + 1);
+    // Calculate address for PIO
+    uint address = (uint)&_eb_memory >> 17;
 
     pio_sm_put(pio, sm, address);
     pio_sm_exec(pio, sm, pio_encode_pull(false, true));

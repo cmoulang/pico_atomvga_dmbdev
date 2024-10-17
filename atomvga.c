@@ -279,95 +279,6 @@ void switch_colour(uint8_t          newcolour,
 
 volatile bool support_lower = false;
 
-// #if (R65C02 == 1)
-// #else
-
-// // DMB: no need to specify __no_inline_not_in_flash_func as CMakeLists.txt
-// // specifies pico_set_binary_type(TARGET copy_to_ram) for all targets
-// void main_loop()
-// {
-//     static uint16_t    last = 0;
-
-//     while (true)
-//     {
-//         // Get event from SM 0
-//         u_int32_t reg = pio_sm_get_blocking(pio, 0);
-
-//         // Is it a read or write opertaion?
-//         if (!(reg & 0x1000000))
-//         {
-//             // Get the address
-//             u_int16_t address = reg;
-//             // read
-//             if (address == COL80_STAT)
-//             {
-//                 uint8_t b = 0x12;
-//                 pio_sm_put(pio, 1, 0xFF00 | b);
-//             }
-//             else if ((address & COL80_MASK) == COL80_BASE)
-//             {
-//                 uint8_t b = eb_get(address);
-//                 pio_sm_put(pio, 1, 0xFF00 | b);
-//             }
-
-//             // Check for reset vector fetch, if so flag reset
-//             if ((RESET_VEC+1 == address) && (RESET_VEC == last))
-//             {
-//                 reset_flag = true;
-//             }   
-//             last = address; 
-//         }
-//         else
-//         {
-//             // Get the address
-//             u_int16_t address = reg & 0xFFFF;
-//             // write
-//             u_int8_t data = (reg & 0xFF0000) >> 16;
-//             eb_set(address, data);
-// #if (PLATFORM == PLATFORM_DRAGON)
-//             // Update SAM bits when written to
-//             if ((address >= SAM_BASE) && (address <= SAM_END))
-//             {
-//                 uint8_t     sam_data = GetSAMData(address);
-//                 uint16_t    sam_mask = GetSAMDataMask(address);
-
-//                 if (sam_data)
-//                 {
-//                     SAMBits |= sam_mask;
-//                 }
-//                 else
-//                 {
-//                     SAMBits &= ~sam_mask;
-//                 }
-//             }
-
-//             // Change the font as requested
-//             if (DRAGON_FONTNO_ADDR == address)
-//             {
-//                 switch_font(data);
-//             }
-
-//             if (DRAGON_INK_ADDR == address)
-//             {
-//                 switch_colour(data,&ink);
-//             }
-
-//             if (DRAGON_PAPER_ADDR == address)
-//             {
-//                 switch_colour(data,&paper);
-//             }
-
-//             if (DRAGON_INKALT_ADDR == address)
-//             {
-//                 switch_colour(data,&ink_alt);
-//             }
-// #endif
-//         }
-//     }
-// }
-// #endif
-
-
 void print_str(int line_num, char *str)
 {
     printf("%s\n", str);
@@ -520,6 +431,13 @@ void check_command()
     {
         eb_set_perm(0xA00, EB_PERM_READ_ONLY, 0x100);
         eb_set_string(0xA00, "ROM DEMO - #A00-#AFF IS NOW CONTROLLED BY THE PICO\r");
+        ClearCommand();
+    }
+    else if (is_command("STOP",&params))
+    {
+        eb_shutdown();
+        gpio_set_function_masked(0xFFFC, GPIO_FUNC_SIO);
+        gpio_set_dir_in_masked(0xFFFC);
         ClearCommand();
     }
     else if (is_command("DEBUG",&params))
