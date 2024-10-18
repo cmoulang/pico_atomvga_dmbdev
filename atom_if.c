@@ -61,11 +61,11 @@ static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
     // Calculate address for PIO
     uint address = (uint)&_eb_memory >> 17;
 
-    pio_sm_put(pio, sm, address);
-    pio_sm_exec(pio, sm, pio_encode_pull(false, true));
-    pio_sm_exec(pio, sm, pio_encode_mov(pio_x, pio_osr));
-
     pio_sm_init(pio, sm, offset, &c);
+    pio_sm_put(pio, sm, address);
+    pio_sm_exec(pio, sm, pio_encode_pull(false, true) | pio_encode_sideset_opt(3, 0x7));
+    pio_sm_exec(pio, sm, pio_encode_mov(pio_x, pio_osr) | pio_encode_sideset_opt(3, 0x7));
+    pio_sm_exec(pio, sm, pio_encode_nop() | pio_encode_sideset_opt(3, 0x7));
 }
 
 static void eb2_access_program_init(PIO pio, int sm)
@@ -86,6 +86,7 @@ static void eb2_access_program_init(PIO pio, int sm)
     sm_config_set_sideset_pins(&c, PIN_MUX_DATA);
 
     pio_sm_init(pio, sm, offset, &c);
+    pio_sm_exec(pio, sm, pio_encode_nop() | pio_encode_sideset_opt(3, 0x7));
 }
 
 static void eb_setup_dma(PIO pio, int eb2_address_sm,
