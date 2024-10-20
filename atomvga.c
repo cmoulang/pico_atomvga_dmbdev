@@ -38,7 +38,8 @@
 
 #define YARRB_REG0 0xBFFE
 #define YARRB_4MHZ 0x20
-
+#define VIA_DA 0xB801
+#define DONT_RESTART 0xC0FFEE
 
 // PIA and frambuffer address moved into platform.h -- PHS
 
@@ -336,12 +337,38 @@ void event_handler()
                 watchdog_enable(1, false);
             }
         }
+        else if (address == VIA_DA)
+        {
+            if (isprint(x)) 
+            {
+                putchar(x);
+            }
+            else if (x==13)
+            {
+                puts("");
+            }
+            else
+            {
+
+                //printf("[%x]\n", x);
+            }
+        }
+
         address = eb_get_event();
     }
 }
 
 int main(void)
 {
+    if (watchdog_hw->scratch[0] == DONT_RESTART)
+    {
+        stdio_uart_init();
+        puts("STOP command received");
+        stdio_uart_deinit();
+        for (;;)
+        {
+        };
+    }
     uint sys_freq = SYS_FREQ;
     if (sys_freq > 250000)
     {
@@ -401,6 +428,7 @@ int main(void)
     eb_set_perm_byte(PIA_ADDR, EB_PERM_WRITE_ONLY);
     eb_set_perm_byte(YARRB_REG0, EB_PERM_WRITE_ONLY);
     eb_set_perm(0xF000, EB_PERM_WRITE_ONLY, 0x20);
+    eb_set_perm_byte(VIA_DA, EB_PERM_WRITE_ONLY);
 
     eb_init(pio1);
     sc_init();
@@ -430,17 +458,16 @@ void check_command()
     else if (is_command("ROM",&params))
     {
         eb_set_perm(0xA00, EB_PERM_READ_ONLY, 0x100);
-        eb_set_string(0xA00, "ROM DEMO - #A00-#AFF IS NOW CONTROLLED BY THE PICO\r");
+        eb_set_string(0xA00, "ROM DEMO - #A00-#AFF IS NOW     READ ONLY MEMORY CONTROLLED BY  THE PICO\r");
         ClearCommand();
     }
     else if (is_command("STOP",&params))
     {
         eb_shutdown();
-        gpio_set_function_masked(0xFFFC, GPIO_FUNC_SIO);
-        gpio_set_dir_in_masked(0xFFFC);
-        ClearCommand();
+        watchdog_hw->scratch[0] = DONT_RESTART;
+        watchdog_enable(1, false);
     }
-    else if (is_command("DEBUG",&params))
+    else if (is_command("DEBUG", &params))
     {
         debug = true;
         ClearCommand();
