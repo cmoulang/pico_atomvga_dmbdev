@@ -35,6 +35,8 @@ pico_add_extra_outputs(atomvga)
 pico_enable_stdio_uart(atomvga 1)
 pico_set_linker_script(atomvga ${CMAKE_CURRENT_LIST_DIR}/memmap_copy_to_ram.ld)
 
+pico_set_binary_type(atomvga copy_to_ram)
+
 #
 # Atom R65C02 Build
 #
