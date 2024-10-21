@@ -12,13 +12,6 @@
 #include <stdlib.h>
 #include "pico.h"
 
-#if (R65C02 == 1)
-#include "r65c02.pio.h"
-#else
-#include "atomvga.pio.h"
-#endif 
-
-#include "atomvga_out.pio.h"
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 #include "pico/scanvideo.h"
@@ -411,6 +404,15 @@ int main(void)
         print_str(8, "R65C02/4MHZ MODE");
     }
 
+     // set read and write permissions
+    eb_set_perm(0, EB_PERM_NONE, 0x10000);
+    eb_set_perm(FB_ADDR, EB_PERM_WRITE_ONLY, VID_MEM_SIZE);
+    eb_set_perm(COL80_BASE, EB_PERM_READ_WRITE, 16);
+    eb_set_perm_byte(PIA_ADDR, EB_PERM_WRITE_ONLY);
+    eb_set_perm_byte(PIA_ADDR+2, EB_PERM_WRITE_ONLY);
+    eb_set_perm_byte(YARRB_REG0, EB_PERM_WRITE_ONLY);
+    eb_set_perm(0xF000, EB_PERM_WRITE_ONLY, 0x20);
+    eb_set_perm_byte(VIA_DA, EB_PERM_WRITE_ONLY);
 
     // create a semaphore to be posted when video init is complete
     sem_init(&video_initted, 0, 1);
@@ -420,15 +422,6 @@ int main(void)
 
     // wait for initialization of video to be complete
     sem_acquire_blocking(&video_initted);
-
-     // set read and write permissions
-    eb_set_perm(0, EB_PERM_NONE, 0x10000);
-    eb_set_perm(FB_ADDR, EB_PERM_WRITE_ONLY, VID_MEM_SIZE);
-    eb_set_perm(COL80_BASE, EB_PERM_READ_WRITE, 16);
-    eb_set_perm_byte(PIA_ADDR, EB_PERM_WRITE_ONLY);
-    eb_set_perm_byte(YARRB_REG0, EB_PERM_WRITE_ONLY);
-    eb_set_perm(0xF000, EB_PERM_WRITE_ONLY, 0x20);
-    eb_set_perm_byte(VIA_DA, EB_PERM_WRITE_ONLY);
 
     eb_init(pio1);
     sc_init();
