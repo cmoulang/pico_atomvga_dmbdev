@@ -65,6 +65,37 @@ loop:   wait    1 gpio, PIN_1MHZ
 delay:  jmp     y--, delay
         wait    1 gpio, PIN_1MHZ
 
+        jmp     pin, x8nnn
+        jmp     loop
+
+x8nnn:
+        in      pins, 7       side ADLO [1]
+        nop                             [1]
+        nop
+
+        in      pins, 8                  ; A0-A7
+        in      null, 1                  ; auto push - 16 bits
+.wrap
+
+
+.program eb2_addr_other_64
+; calculates a pico address from the 6502's address and pushes it to the DMA channel
+; pico_address = buffer_address + (6502_address * 2)
+; (* 2 because we need the u16 that contains the read/write flags AND data)
+; 
+; x = top 15 bits of pico dma buffer (set by pio_sm_exec)
+;
+.side_set 3 opt
+.wrap_target
+loop:   wait    1 gpio, PIN_1MHZ
+        wait    0 gpio, PIN_1MHZ         ; wait for 1 -> 0
+        set     pindirs, 0    side NONE  ; reset the mux
+        mov     isr, x        side ADHI
+
+        set     y, ADDR_DELAY
+delay:  jmp     y--, delay
+        wait    1 gpio, PIN_1MHZ
+
         in      pins, 8       side ADLO [1]
         nop                             [1]
         nop
@@ -72,6 +103,7 @@ delay:  jmp     y--, delay
         in      pins, 8                  ; A0-A7
         in      null, 1                  ; auto push - 17 bits
 .wrap
+
 
 .program eb2_access
 ; receives a 16bit word containg read/write flags + data from DMA

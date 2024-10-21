@@ -9,7 +9,10 @@
 #include <stdio.h>
 
 #define EB_ADD_BITS 16
-#define EB_BUFFER_LENGTH 0x10000
+#define EB_ADDRESS_LOW 0x8000
+#define EB_ADDRESS_HIGH 0x10000
+#define EB_BUFFER_LENGTH 0x8000
+#define EB_ADDRESS_LOW 0x8000
 #define EB_65C02_MAGIC_NUMBER 0x65C02
 
 // set to 1 to enable snooping reads to 6502 peripherals
@@ -40,13 +43,31 @@ void eb_init(PIO pio);
 /// @brief shutdown the 6502 bus interface prior to reset
 void eb_shutdown();
 
+static int perm_high = 0;
+static int perm_low = EB_ADDRESS_HIGH;
+
+static inline void print_perm_range()
+{
+    printf("perm range. low=%x high=%x\n", perm_low, perm_high);
+}
+
 /// @brief set the read/write permissions for an address
 /// @param address 6502 address
 /// @param  perm see enum for possible values
 static inline void eb_set_perm_byte(uint16_t address, enum eb_perm perm)
 {
-    volatile uint8_t *p = (uint8_t *)&_eb_memory[address] + 1;
-    *p = perm;
+    if (perm != EB_PERM_NONE)
+    {
+        if (address > perm_high)
+            perm_high = address;
+        if (address < perm_low)
+            perm_low = address;
+    }
+    if (address & 0x8000)
+    {
+        volatile uint8_t *p = (uint8_t *)&_eb_memory[address & 0x7FFF] + 1;
+        *p = perm;
+    }
 }
 
 /// @brief set the read/write permissions for a range of addresses
@@ -55,7 +76,7 @@ static inline void eb_set_perm_byte(uint16_t address, enum eb_perm perm)
 /// @param size number of bytes to set
 static inline void eb_set_perm(uint16_t start, enum eb_perm perm, size_t size)
 {
-    hard_assert(start + size <= EB_BUFFER_LENGTH);
+    hard_assert(start + size <= EB_ADDRESS_HIGH);
     for (size_t i = start; i < start + size; i++)
     {
         eb_set_perm_byte(i, perm);
@@ -67,7 +88,7 @@ static inline void eb_set_perm(uint16_t start, enum eb_perm perm, size_t size)
 /// @return the value of the byte
 static inline uint8_t eb_get(uint16_t address)
 {
-    return _eb_memory[address] & 0xFF;
+    return _eb_memory[address & 0x7FFF] & 0xFF;
 }
 
 /// @brief get a 32 bit value
@@ -89,8 +110,11 @@ static inline uint32_t eb_get32(uint16_t address)
 /// @param value the new value
 static inline void eb_set(uint16_t address, unsigned char value)
 {
-    volatile uint8_t *p = (uint8_t *)&_eb_memory[address];
-    *p = value;
+    if (address & 0x8000)
+    {
+        volatile uint8_t *p = (uint8_t *)&_eb_memory[address & 0x7FFF];
+        *p = value;
+    }
 }
 
 /// @brief get a string of chars
@@ -111,7 +135,7 @@ static inline void eb_get_chars(char *buffer, size_t size, uint16_t address)
 /// @param size number of chars to copy
 static inline void eb_set_chars(uint16_t address, const char *buffer, size_t size)
 {
-    hard_assert(address + size <= EB_BUFFER_LENGTH);
+    hard_assert(address + size <= EB_ADDRESS_HIGH);
     for (size_t i = 0; i < size; i++)
     {
         eb_set(address + i, buffer[i]);
@@ -132,7 +156,7 @@ static inline void eb_set_string(uint16_t address, const char *str)
 /// @param size the number of loactions to set
 static inline void eb_memset(uint16_t address, char c, size_t size)
 {
-    hard_assert(address + size <= EB_BUFFER_LENGTH);
+    hard_assert(address + size <= EB_ADDRESS_HIGH);
     for (size_t i = address; i < address + size; i++)
     {
         eb_set(i, c);

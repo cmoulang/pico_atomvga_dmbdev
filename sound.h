@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 #define SC_PIN 21
-#define SC_SAMPLE_RATE 20000
+#define SC_SAMPLE_RATE 44100
 #define SC_TICK_US (1000000 / SC_SAMPLE_RATE)
 #define SC_NOOF_VOICES 3
 #define SC_PWM_WRAP ((UINT16_MAX * 3) >> 6)

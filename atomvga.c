@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 #include "atom_if.h"
+#include "atom_sid.h"
 #include "sound.h"
 
 #include <stdio.h>
@@ -351,7 +352,7 @@ void event_handler()
     }
 }
 
-int main(void)
+int atomvga_main(void)
 {
     if (watchdog_hw->scratch[0] == DONT_RESTART)
     {
@@ -405,7 +406,7 @@ int main(void)
     }
 
      // set read and write permissions
-    eb_set_perm(0, EB_PERM_NONE, 0x10000);
+    eb_set_perm(EB_ADDRESS_LOW, EB_PERM_NONE, EB_ADDRESS_HIGH - EB_ADDRESS_LOW);
     eb_set_perm(FB_ADDR, EB_PERM_WRITE_ONLY, VID_MEM_SIZE);
     eb_set_perm(COL80_BASE, EB_PERM_READ_WRITE, 16);
     eb_set_perm_byte(PIA_ADDR, EB_PERM_WRITE_ONLY);
@@ -426,7 +427,13 @@ int main(void)
     eb_init(pio1);
     sc_init();
 
+    print_perm_range();
+
+
     eb_set_exclusive_handler(event_handler);
+
+    as_init();
+
 
     // The VGA generation is running on the other core and
     // the SID emulation is interrupt driven, so there is

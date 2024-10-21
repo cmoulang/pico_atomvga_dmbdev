@@ -6,6 +6,14 @@ project(atomvga_project)
 
 pico_sdk_init()
 
+
+add_compile_definitions(PICO_NO_FPGA_CHECK=1)
+add_compile_definitions(PICO_BARE_METAL=1)
+add_compile_definitions(PICO_CXX_ENABLE_EXCEPTIONS=0)
+#add_compile_definitions(PICO_STDIO_UART=0)
+
+
+
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter" )
 
 #
@@ -13,15 +21,28 @@ set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter" )
 #
 
 add_executable(atomvga
+  main.cc
   atomvga.c
   genlock.c
   atom_if.c
+  atom_sid.cc
+  reSID16/envelope.cc
+  reSID16/extfilt.cc
+  reSID16/pot.cc
+  reSID16/filter.cc
+  reSID16/sid.cc
+  reSID16/voice.cc
+  reSID16/wave.cc
   )
 
 pico_generate_pio_header(atomvga ${CMAKE_CURRENT_LIST_DIR}/sm.pio)
 pico_generate_pio_header(atomvga ${CMAKE_CURRENT_LIST_DIR}/genlock.pio)
 
 target_compile_definitions(atomvga PUBLIC -DGENLOCK= -DINCLUDE_BRIGHT_ORANGE=1 -DPLATFORM=PLATFORM_ATOM -DPICO_SCANVIDEO_MAX_SCANLINE_BUFFER_WORDS=800 -DPICO_SCANVIDEO_SCANLINE_BUFFER_COUNT=16)
+target_compile_definitions(atomvga PRIVATE PICO_MALLOC_PANIC=0)
+target_compile_definitions(atomvga PRIVATE PICO_USE_MALLOC_MUTEX=0)
+target_compile_definitions(atomvga PRIVATE PICO_DEBUG_MALLOC=0)
+target_compile_options(atomvga PRIVATE -save-temps -fverbose-asm)
 
 target_link_libraries(atomvga PRIVATE
   pico_multicore
@@ -57,6 +78,7 @@ pico_generate_pio_header(atomvga_r65c02 ${CMAKE_CURRENT_LIST_DIR}/genlock.pio)
 target_compile_definitions(atomvga_r65c02 PUBLIC -DPLATFORM=PLATFORM_ATOM -DPICO_SCANVIDEO_MAX_SCANLINE_BUFFER_WORDS=800 -DPICO_SCANVIDEO_SCANLINE_BUFFER_COUNT=16 -DR65C02=1)
 
 target_link_libraries(atomvga_r65c02 PRIVATE
+  main.cc
   pico_multicore
   pico_stdlib
   pico_scanvideo_dpi
@@ -80,6 +102,7 @@ pico_set_linker_script(atomvga_r65c02 ${CMAKE_CURRENT_LIST_DIR}/memmap_copy_to_r
 #
 
 add_executable(dragonvga
+  main.cc
   atomvga.c
   eeprom.c
   atom_if.c
