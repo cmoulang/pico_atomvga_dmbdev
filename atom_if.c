@@ -1,8 +1,8 @@
 #include "atom_if.h"
 
-volatile _Alignas(EB_BUFFER_LENGTH*2) uint16_t _eb_memory[EB_BUFFER_LENGTH] __attribute__ ((section (".uninitialized_dma_buffer")));
+volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2) _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
 
-#define EB_EVENT_QUEUE_BITS 5
+#define EB_EVENT_QUEUE_BITS 6
 #define EB_EVENT_QUEUE_LEN ((1 << EB_EVENT_QUEUE_BITS) / __SIZEOF_INT__)
 
 static _Alignas(1 << EB_EVENT_QUEUE_BITS) uint32_t eb_event_queue[EB_EVENT_QUEUE_LEN];
@@ -13,7 +13,7 @@ static uint eb_event_chan;
 
 static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
 {
-    uint offset;
+    int offset;
     pio_sm_config c;
 
     if (r65c02mode)
@@ -26,6 +26,7 @@ static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
         offset = pio_add_program(pio, &eb2_addr_other_program);
         c = eb2_addr_other_program_get_default_config(offset);
     }
+    hard_assert(offset >= 0);
 
     (pio)->input_sync_bypass = (0xFF << PIN_A0) | (1 << PIN_R_NW);
 
@@ -40,6 +41,9 @@ static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
         pio_gpio_init(pio, pin);
         gpio_set_pulls(pin, true, false);
     }
+
+    pio_gpio_init(pio, PIN_1MHZ);
+    pio_gpio_init(pio, PIN_R_NW);
 
     pio_sm_set_pins_with_mask(pio, sm,
                               (0x07 << PIN_MUX_DATA),
@@ -61,7 +65,9 @@ static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
     // Calculate address for PIO
     uint address = (uint)&_eb_memory >> 16;
 
-    pio_sm_init(pio, sm, offset, &c);
+    int status;
+    status = pio_sm_init(pio, sm, offset, &c);
+    hard_assert(status == PICO_OK);
     pio_sm_put(pio, sm, address);
     pio_sm_exec(pio, sm, pio_encode_pull(false, true) | pio_encode_sideset_opt(3, 0x7));
     pio_sm_exec(pio, sm, pio_encode_mov(pio_x, pio_osr) | pio_encode_sideset_opt(3, 0x7));
@@ -225,7 +231,7 @@ int eb_get_event()
     else
     {
         uint pico_address = *out_ptr;
-        result = (pico_address - (uint)&_eb_memory) / 2;
+        result = 0x8000 + (pico_address - (uint)&_eb_memory) / 2;
         out_ptr++;
         if (out_ptr > &eb_event_queue[EB_EVENT_QUEUE_LEN - 1])
         {

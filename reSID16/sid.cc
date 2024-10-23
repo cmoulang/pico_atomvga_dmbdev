@@ -575,7 +575,7 @@ bool SID16::set_sampling_parameters(float clock_freq, sampling_method method,
   // this is only OK because we will definitely not use
   // a sampling mode that requires the "sample"-buffer!
   //
-#if 0
+#if 1
   // Allocate sample buffer.
   if (!sample) {
     sample = new short[RINGSIZE*2];

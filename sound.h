@@ -91,12 +91,15 @@ static volatile sc_voc_voice sc_voc[SC_NOOF_VOICES];
 
 static struct repeating_timer sc_timer;
 
+static volatile uint sid_registers[29];
+
 /// @brief get a byte from a sid register 
 /// @param reg the register 0-28
 /// @return 
-static inline uint sid_get(uint16_t reg)
+static inline uint sid_get(int reg)
 {
-    return eb_get(SID_BASE_ADDR + reg);
+    // return eb_get(SID_BASE_ADDR + reg);
+    return sid_registers[reg];
 }
 
 static inline int sc_freq_from_sid(uint16_t addr)
@@ -174,7 +177,7 @@ bool sc_timer_callback(struct repeating_timer *t)
     static int sample;
     pwm_set_gpio_level(SC_PIN, sample);
 
-    sample += sc_voc_next_sample(0);
+    sample = sc_voc_next_sample(0);
     sample += sc_voc_next_sample(1);
     int x = sid_get(MODE_VOL);
     if (!(x & MODE_3_OFF))
@@ -211,6 +214,22 @@ static void sc_init()
 
     bool ok = add_repeating_timer_us(-SC_TICK_US, sc_timer_callback, NULL, &sc_timer);
     hard_assert(ok);
+
+}
+
+static inline void sc_main_loop(eb_int32_fifo_t* fifo)
+{
+    for (;;)
+    {
+        int x;
+        while (eb_int32_fifo_get(fifo, &x))
+        {
+            int address = x >> 8;
+            int data = x & 0xFF;
+            sid_registers[address] = data;
+        }
+        pico_default_asm_volatile("wfi");
+    }
 }
 
 static inline bool sc_shutdown()

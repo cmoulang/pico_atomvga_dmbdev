@@ -23,6 +23,64 @@
 #define _EB_READ_FLAG 0b001
 #define _EB_READ_SNOOP_FLAG 0b100
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2)  _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
+
+typedef volatile struct eb_int32_fifo eb_int32_fifo_t;
+
+struct eb_int32_fifo {
+    volatile int* buffer;
+    size_t last;
+    size_t in_index;
+    size_t out_index;
+};
+
+inline void eb_int32_fifo_init(eb_int32_fifo_t* fifo, volatile int* buffer, size_t length)
+{
+    fifo->buffer = buffer;
+    fifo->last = length-1;
+    fifo->in_index = 0;
+    fifo->out_index = 0;
+}
+
+inline void eb_int32_fifo_inc_index(eb_int32_fifo_t* fifo, volatile size_t* index)
+{
+    if (*index == 0) 
+    {
+        *index = fifo->last;
+    }
+    else
+    {
+        *index = *index -1;
+    }
+}
+
+inline void eb_int32_fifo_put(eb_int32_fifo_t* fifo, int data)
+{
+    fifo->buffer[fifo->in_index] = data;
+    eb_int32_fifo_inc_index(fifo, &fifo->in_index);
+}
+
+inline bool eb_int32_fifo_get(eb_int32_fifo_t* fifo, int* data)
+{
+    bool result;
+    if (fifo->in_index == fifo->out_index)
+    {
+        result = false;
+    }
+    else
+    {
+        *data = fifo->buffer[fifo->out_index];
+        eb_int32_fifo_inc_index(fifo, &fifo->out_index);
+        result = true;
+    }
+    return result;
+}
+
+
 enum eb_perm
 {
     EB_PERM_NONE = 0,
@@ -34,7 +92,6 @@ enum eb_perm
 #endif
 };
 
-extern volatile _Alignas(EB_BUFFER_LENGTH * 2) uint16_t _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
 
 /// @brief initialise and start the PIO and DMA interface to the 6502 bus
 /// @param pio the pio instance to use
@@ -177,3 +234,8 @@ void eb_set_exclusive_handler(irq_handler_t handler);
 /// @brief get the next 6502 address from the event queue
 /// @return 16-bit 6502 address, -1 indicates the queue is empty
 int eb_get_event();
+
+#ifdef __cplusplus
+}
+#endif
+

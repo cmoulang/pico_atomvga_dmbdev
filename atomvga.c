@@ -29,7 +29,6 @@
 #include "eeprom.h"
 #endif
 
-
 #define YARRB_REG0 0xBFFE
 #define YARRB_4MHZ 0x20
 #define VIA_DA 0xB801
@@ -63,7 +62,7 @@ volatile uint8_t fontno = DEFAULT_FONT;
 volatile uint8_t max_lower = LOWER_END;
 
 volatile uint16_t ink = DEF_INK;
-volatile uint16_t ink_alt = DEF_INK_ALT;  
+volatile uint16_t ink_alt = DEF_INK_ALT;
 volatile uint16_t paper = DEF_PAPER;
 
 volatile uint8_t autoload = 0;
@@ -71,14 +70,6 @@ volatile uint8_t autoload = 0;
 volatile uint8_t artifact = 0;
 
 volatile bool reset_flag = false;
-
-// Initialise the GPIO pins - overrides whatever the scanvideo library did
-static void initialiseIO()
-{
-    // Grab the uart pins back from the video function
-    gpio_set_function(0, GPIO_FUNC_UART);
-    gpio_set_function(1, GPIO_FUNC_UART);
-}
 
 void reset_vga80();
 
@@ -148,7 +139,7 @@ void set_debug_text(char *text)
             c = c ^ 0x60;
         }
 #else
-        if((c >= 0x20) && (c <= 0x3F))
+        if ((c >= 0x20) && (c <= 0x3F))
         {
             c = c + 0x40;
         }
@@ -161,7 +152,7 @@ void set_debug_text(char *text)
     }
 }
 
-#define DEBUG_BUF_SIZE  80
+#define DEBUG_BUF_SIZE 80
 
 void update_debug_text()
 {
@@ -175,22 +166,22 @@ void update_debug_text()
         uint m = (mode + 1) / 2;
 #if (PLATFORM == PLATFORM_ATOM)
         snprintf(buffer, DEBUG_BUF_SIZE, "mode %x/%d %dx%d %s %d",
-                mode,
-                m,
-                get_width(mode),
-                get_height(mode),
-                is_colour(mode) ? "col" : "b&w",
-                bytes);
+                 mode,
+                 m,
+                 get_width(mode),
+                 get_height(mode),
+                 is_colour(mode) ? "col" : "b&w",
+                 bytes);
 #elif (PLATFORM == PLATFORM_DRAGON)
         snprintf(buffer, DEBUG_BUF_SIZE, "mode %x/%d %dx%d %s %d %04X %02X",
-                mode,
-                m,
-                get_width(mode),
-                get_height(mode),
-                is_colour(mode) ? "col" : "b&w",
-                bytes,
-                SAMBits,
-                artifact);
+                 mode,
+                 m,
+                 get_width(mode),
+                 get_height(mode),
+                 is_colour(mode) ? "col" : "b&w",
+                 bytes,
+                 SAMBits,
+                 artifact);
 #endif
         set_debug_text(buffer);
     }
@@ -228,13 +219,13 @@ bool is_command(char *cmd,
 }
 
 bool uint8_param(char *params,
-                int *output,
-                int min,
-                int max)
+                 int *output,
+                 int min,
+                 int max)
 {
     int try;
-    //DMB: Avoid sscanf, it bloats the uf2 size by 100KB
-    //if (sscanf(params, "%d", &try))
+    // DMB: Avoid sscanf, it bloats the uf2 size by 100KB
+    // if (sscanf(params, "%d", &try))
     char *end;
     try = strtol(params, &end, 10);
     if (end > params)
@@ -253,7 +244,7 @@ bool uint8_param(char *params,
 void switch_font(uint8_t new_font)
 {
     uint8_t font_range;
- 
+
     // make sure new fontno is valid.....
     fontno = (new_font < FONT_COUNT) ? new_font : DEFAULT_FONT;
 
@@ -263,12 +254,12 @@ void switch_font(uint8_t new_font)
     max_lower = (font_range < LOWER_RANGE) ? LOWER_START + font_range : LOWER_END;
 }
 
-void switch_colour(uint8_t          newcolour,
+void switch_colour(uint8_t newcolour,
                    volatile uint16_t *tochange)
 {
     if (newcolour < NO_COLOURS)
     {
-        *tochange=colour_palette_atom[newcolour];
+        *tochange = colour_palette_atom[newcolour];
     }
 }
 
@@ -281,8 +272,10 @@ void print_str(int line_num, char *str)
     eb_set_chars(GetVidMemBase() + 0x020 * line_num, debug_text, 32);
 }
 
-void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, uint post_div2) {
-    if (!running_on_fpga()) {
+void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, uint post_div2)
+{
+    if (!running_on_fpga())
+    {
         clock_configure(clk_sys,
                         CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLKSRC_CLK_SYS_AUX,
                         CLOCKS_CLK_SYS_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB,
@@ -314,14 +307,26 @@ void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, ui
     }
 }
 
+volatile int max_count = 0;
+
+eb_int32_fifo_t fifo;
+volatile int fifo_buffer[8];
+
 void event_handler()
 {
     dma_hw->ints1 = 1u << eb_get_event_chan();
     int address = eb_get_event();
+    int count = 0;
     while (address > 0)
     {
+        count++;
         uint8_t x = eb_get(address);
-        if (address == YARRB_REG0)
+        if (address >= SID_BASE_ADDR && address <= (SID_BASE_ADDR + SID_LEN))
+        {
+            int y = ((address - SID_BASE_ADDR) << 8) + x;
+            eb_int32_fifo_put(&fifo, y);
+        }
+        else if (address == YARRB_REG0)
         {
             if ((x & YARRB_4MHZ) && (watchdog_hw->scratch[0] != EB_65C02_MAGIC_NUMBER))
             {
@@ -333,27 +338,51 @@ void event_handler()
         }
         else if (address == VIA_DA)
         {
-            if (isprint(x)) 
+            if (isprint(x))
             {
                 putchar(x);
             }
-            else if (x==13)
+            else if (x == 13)
             {
                 puts("");
             }
             else
             {
 
-                //printf("[%x]\n", x);
+                // printf("[%x]\n", x);
             }
         }
 
         address = eb_get_event();
     }
+    if (count > max_count)
+    {
+        max_count = count;
+    }
+}
+
+void beep()
+{
+        gpio_init(21);
+    gpio_set_dir(21, true);
+    gpio_set_drive_strength(21, GPIO_DRIVE_STRENGTH_12MA);
+    for (int i = 0; i < 50; i++)
+    {
+        sleep_ms(1);
+        gpio_put(21, 0);
+        sleep_ms(1);
+        gpio_put(21, 1);
+    }
+
 }
 
 int atomvga_main(void)
 {
+    beep();
+    stdio_uart_init();
+    printf("Atom VGA built " __DATE__ " " __TIME__ "\r\n");
+    stdio_uart_deinit();
+    // Don't restart if watchdog says not to.
     if (watchdog_hw->scratch[0] == DONT_RESTART)
     {
         stdio_uart_init();
@@ -363,6 +392,8 @@ int atomvga_main(void)
         {
         };
     }
+
+    // Set overclock and over voltage if necessary
     uint sys_freq = SYS_FREQ;
     if (sys_freq > 250000)
     {
@@ -375,20 +406,20 @@ int atomvga_main(void)
     set_sys_clock_khz(sys_freq, true);
 #endif
 
-    stdio_init_all();
+    stdio_uart_init();
     printf("Atom VGA built " __DATE__ " " __TIME__ "\r\n");
 
     switch_font(DEFAULT_FONT);
 
 #if (PLATFORM == PLATFORM_DRAGON)
     init_ee();
-    read_ee(EE_ADDRESS,EE_AUTOLOAD,(uint8_t *)&autoload);
-    if(AUTO_ON == autoload)
+    read_ee(EE_ADDRESS, EE_AUTOLOAD, (uint8_t *)&autoload);
+    if (AUTO_ON == autoload)
     {
         load_ee();
     }
 #endif
-   
+
     eb_memset(0, 0, 0x10000);
     eb_memset(GetVidMemBase(), VDG_SPACE, 0x200);
 
@@ -400,68 +431,81 @@ int atomvga_main(void)
     snprintf(mess, 32, "BASE=%04X, PIA=%04X", GetVidMemBase(), PIA_ADDR);
     print_str(6, mess);
     print_str(7, "DMA VERSION");
+
     if (watchdog_hw->scratch[0] == EB_65C02_MAGIC_NUMBER)
     {
         print_str(8, "R65C02/4MHZ MODE");
     }
 
-     // set read and write permissions
+    // set read and write permissions
     eb_set_perm(EB_ADDRESS_LOW, EB_PERM_NONE, EB_ADDRESS_HIGH - EB_ADDRESS_LOW);
     eb_set_perm(FB_ADDR, EB_PERM_WRITE_ONLY, VID_MEM_SIZE);
     eb_set_perm(COL80_BASE, EB_PERM_READ_WRITE, 16);
     eb_set_perm_byte(PIA_ADDR, EB_PERM_WRITE_ONLY);
-    eb_set_perm_byte(PIA_ADDR+2, EB_PERM_WRITE_ONLY);
+    eb_set_perm_byte(PIA_ADDR + 2, EB_PERM_WRITE_ONLY);
     eb_set_perm_byte(YARRB_REG0, EB_PERM_WRITE_ONLY);
     eb_set_perm(0xF000, EB_PERM_WRITE_ONLY, 0x20);
     eb_set_perm_byte(VIA_DA, EB_PERM_WRITE_ONLY);
+    print_perm_range();
 
     // create a semaphore to be posted when video init is complete
     sem_init(&video_initted, 0, 1);
-
+    stdio_uart_deinit();
     // launch all the video on core 1, so it isn't affected by USB handling on core 0
     multicore_launch_core1(core1_func);
 
     // wait for initialization of video to be complete
     sem_acquire_blocking(&video_initted);
+    stdio_uart_init();
+    puts("VIDEO INITIALISED");
 
     eb_init(pio1);
-    sc_init();
-
-    print_perm_range();
 
 
-    eb_set_exclusive_handler(event_handler);
-
+    //sc_init();
     as_init();
 
+    eb_int32_fifo_init(&fifo, fifo_buffer, sizeof(fifo_buffer) / 4);
+    eb_set_exclusive_handler(event_handler);
+
+    //sc_main_loop(&fifo);
+    as_main_loop(&fifo);
 
     // The VGA generation is running on the other core and
     // the SID emulation is interrupt driven, so there is
     // spare cpu capacity to do something useful here!
     while (1)
     {
-        tight_loop_contents(); // nop
+        sleep_ms(500);
+        printf("max count = %d\n", max_count);
+        max_count = 0;
+        int x;
+        while (eb_int32_fifo_get(&fifo, &x))
+        {
+            printf("%4x ", x);
+        }
+        puts("");
     }
 }
 
 #if (PLATFORM == PLATFORM_ATOM)
 void check_command()
 {
-    char    *params = (char *)NULL;
+    char *params = (char *)NULL;
     int temp;
 
-    if (is_command("RAM",&params))
+    if (is_command("RAM", &params))
     {
         eb_set_perm(0xA00, EB_PERM_READ_WRITE, 0x100);
         ClearCommand();
     }
-    else if (is_command("ROM",&params))
+    else if (is_command("ROM", &params))
     {
         eb_set_perm(0xA00, EB_PERM_READ_ONLY, 0x100);
         eb_set_string(0xA00, "ROM DEMO - #A00-#AFF IS NOW     READ ONLY MEMORY CONTROLLED BY  THE PICO\r");
         ClearCommand();
     }
-    else if (is_command("STOP",&params))
+    else if (is_command("STOP", &params))
     {
         eb_shutdown();
         watchdog_hw->scratch[0] = DONT_RESTART;
@@ -472,79 +516,79 @@ void check_command()
         debug = true;
         ClearCommand();
     }
-    else if (is_command("NODEBUG",&params))
+    else if (is_command("NODEBUG", &params))
     {
         debug = false;
         ClearCommand();
     }
-    else if (is_command("LOWER",&params))
+    else if (is_command("LOWER", &params))
     {
         support_lower = true;
         ClearCommand();
     }
-    else if (is_command("NOLOWER",&params))
+    else if (is_command("NOLOWER", &params))
     {
         support_lower = false;
         ClearCommand();
     }
-    else if (is_command("CHARSET",&params))
+    else if (is_command("CHARSET", &params))
     {
-        temp=fontno;
-        if (uint8_param(params,&temp,0,FONT_COUNT-1))
+        temp = fontno;
+        if (uint8_param(params, &temp, 0, FONT_COUNT - 1))
         {
             switch_font(temp);
         }
         ClearCommand();
     }
-    else if (is_command("FG",&params))
+    else if (is_command("FG", &params))
     {
-        if (uint8_param(params,&temp,0,NO_COLOURS-1))
+        if (uint8_param(params, &temp, 0, NO_COLOURS - 1))
         {
-            switch_colour(temp,&ink);        
+            switch_colour(temp, &ink);
         }
         ClearCommand();
     }
-    else if (is_command("FGA",&params))
+    else if (is_command("FGA", &params))
     {
-        if (uint8_param(params,&temp,0,NO_COLOURS-1))
+        if (uint8_param(params, &temp, 0, NO_COLOURS - 1))
         {
-            switch_colour(temp,&ink_alt);
+            switch_colour(temp, &ink_alt);
         }
         ClearCommand();
     }
-    else if (is_command("BG",&params))
+    else if (is_command("BG", &params))
     {
-        if (uint8_param(params,&temp,0,NO_COLOURS-1))
+        if (uint8_param(params, &temp, 0, NO_COLOURS - 1))
         {
-            switch_colour(temp,&paper);
+            switch_colour(temp, &paper);
         }
         ClearCommand();
     }
-    else if (is_command("ARTI",&params))
+    else if (is_command("ARTI", &params))
     {
-        if (uint8_param(params,&temp,0,2))
+        if (uint8_param(params, &temp, 0, 2))
         {
             artifact = temp;
         }
         ClearCommand();
     }
-    else if (is_command("80COL",&params))
+    else if (is_command("80COL", &params))
     {
         eb_set(COL80_BASE, COL80_ON);
         ClearCommand();
     }
 #ifdef GENLOCK
-    else if (is_command("GENLOCK",&params))
+    else if (is_command("GENLOCK", &params))
     {
-        if (uint8_param(params,&temp,0,GENLOCK_NUM_MODES-1))
+        if (uint8_param(params, &temp, 0, GENLOCK_NUM_MODES - 1))
         {
-            genlock_setting = (genlock_mode_t) temp;
+            genlock_setting = (genlock_mode_t)temp;
         }
         ClearCommand();
     }
-    else if (is_command("GENDEBUG",&params))
+    else if (is_command("GENDEBUG", &params))
     {
-        if (uint8_param(params,&temp,0,1))
+        if (uint8_param(params, &temp, 0, 1))
         {
             genlock_debug(temp);
         }
@@ -556,15 +600,15 @@ void check_command()
 
 void save_ee(void)
 {
-    if (0 <= write_ee(EE_ADDRESS,EE_AUTOLOAD,autoload))
+    if (0 <= write_ee(EE_ADDRESS, EE_AUTOLOAD, autoload))
     {
-        write_ee(EE_ADDRESS,EE_FONTNO,fontno);
-        write_ee_bytes(EE_ADDRESS,EE_INK,(uint8_t *)&ink,sizeof(ink));
-        write_ee_bytes(EE_ADDRESS,EE_PAPER,(uint8_t *)&paper,sizeof(paper));
-        write_ee_bytes(EE_ADDRESS,EE_INK_ALT,(uint8_t *)&ink_alt,sizeof(ink_alt));
-        write_ee(EE_ADDRESS,EE_ISLOWER,support_lower);
+        write_ee(EE_ADDRESS, EE_FONTNO, fontno);
+        write_ee_bytes(EE_ADDRESS, EE_INK, (uint8_t *)&ink, sizeof(ink));
+        write_ee_bytes(EE_ADDRESS, EE_PAPER, (uint8_t *)&paper, sizeof(paper));
+        write_ee_bytes(EE_ADDRESS, EE_INK_ALT, (uint8_t *)&ink_alt, sizeof(ink_alt));
+        write_ee(EE_ADDRESS, EE_ISLOWER, support_lower);
 
-        printf("fontno=%02X, ink=%04X, paper=%04X, alt_ink=%04X, lower=%d\n",fontno,ink,paper,ink_alt,support_lower);
+        printf("fontno=%02X, ink=%04X, paper=%04X, alt_ink=%04X, lower=%d\n", fontno, ink, paper, ink_alt, support_lower);
     }
 }
 
@@ -572,23 +616,23 @@ void load_ee(void)
 {
     uint8_t tempb;
 
-    if(0 <= read_ee(EE_ADDRESS,EE_AUTOLOAD,(uint8_t *)&autoload))
+    if (0 <= read_ee(EE_ADDRESS, EE_AUTOLOAD, (uint8_t *)&autoload))
     {
-        read_ee(EE_ADDRESS,EE_FONTNO,&tempb);
+        read_ee(EE_ADDRESS, EE_FONTNO, &tempb);
         switch_font(tempb);
 
-        read_ee_bytes(EE_ADDRESS,EE_INK,(uint8_t *)&ink,sizeof(ink));
-        read_ee_bytes(EE_ADDRESS,EE_PAPER,(uint8_t *)&paper,sizeof(paper));
-        read_ee_bytes(EE_ADDRESS,EE_INK_ALT,(uint8_t *)&ink_alt,sizeof(ink_alt));
-        read_ee(EE_ADDRESS,EE_ISLOWER,(uint8_t *)&support_lower);
+        read_ee_bytes(EE_ADDRESS, EE_INK, (uint8_t *)&ink, sizeof(ink));
+        read_ee_bytes(EE_ADDRESS, EE_PAPER, (uint8_t *)&paper, sizeof(paper));
+        read_ee_bytes(EE_ADDRESS, EE_INK_ALT, (uint8_t *)&ink_alt, sizeof(ink_alt));
+        read_ee(EE_ADDRESS, EE_ISLOWER, (uint8_t *)&support_lower);
 
-        printf("fontno=%02X, ink=%04X, paper=%04X, alt_ink=%04X, lower=%d\n",fontno,ink,paper,ink_alt,support_lower);
+        printf("fontno=%02X, ink=%04X, paper=%04X, alt_ink=%04X, lower=%d\n", fontno, ink, paper, ink_alt, support_lower);
     }
 }
 
 void set_auto(uint8_t state)
 {
-    write_ee(EE_ADDRESS,EE_AUTOLOAD,state);
+    write_ee(EE_ADDRESS, EE_AUTOLOAD, state);
 }
 
 void check_command()
@@ -596,24 +640,46 @@ void check_command()
     static uint8_t oldcommand = 0;
     uint8_t command = eb_get(DRAGON_CMD_ADDR);
 
-    if(command != oldcommand)
+    if (command != oldcommand)
     {
         switch (command)
         {
-            case DRAGON_CMD_DEBUG   : debug = true; break;
-            case DRAGON_CMD_NODEBUG : debug = false; break;
-            case DRAGON_CMD_LOWER   : support_lower = true; break;
-            case DRAGON_CMD_NOLOWER : support_lower = false; break;
-            case DRAGON_CMD_ARTIOFF : artifact = 0; break;
-            case DRAGON_CMD_ARTI1   : artifact = 1; break;
-            case DRAGON_CMD_ARTI2   : artifact = 2; break;
-            case DRAGON_CMD_SAVEEE  : save_ee(); break;
-            case DRAGON_CMD_LOADEE  : load_ee(); break;
-            case DRAGON_CMD_AUTOOFF : set_auto(AUTO_OFF); break;
-            case DRAGON_CMD_AUTOON  : set_auto(AUTO_ON); break;
+        case DRAGON_CMD_DEBUG:
+            debug = true;
+            break;
+        case DRAGON_CMD_NODEBUG:
+            debug = false;
+            break;
+        case DRAGON_CMD_LOWER:
+            support_lower = true;
+            break;
+        case DRAGON_CMD_NOLOWER:
+            support_lower = false;
+            break;
+        case DRAGON_CMD_ARTIOFF:
+            artifact = 0;
+            break;
+        case DRAGON_CMD_ARTI1:
+            artifact = 1;
+            break;
+        case DRAGON_CMD_ARTI2:
+            artifact = 2;
+            break;
+        case DRAGON_CMD_SAVEEE:
+            save_ee();
+            break;
+        case DRAGON_CMD_LOADEE:
+            load_ee();
+            break;
+        case DRAGON_CMD_AUTOOFF:
+            set_auto(AUTO_OFF);
+            break;
+        case DRAGON_CMD_AUTOON:
+            set_auto(AUTO_ON);
+            break;
         }
 
-        oldcommand=command;
+        oldcommand = command;
     }
 }
 #endif
@@ -624,9 +690,9 @@ void check_reset(void)
     {
         // back to 32 column mode
         reset_vga80();
-        
+
         // reset colours if ink and paper are the same
-        if(ink == paper)
+        if (ink == paper)
         {
             ink = DEF_INK;
             paper = DEF_PAPER;
@@ -700,12 +766,12 @@ uint16_t *do_text(scanvideo_scanline_buffer_t *buffer, uint relative_line_num, s
     // Each char is 12 x 8 pixels
     // Note we divide ralative_line_number by 2 as we are double scanning each 6847 line to
     // 2 VGA lines.
-    uint row = (relative_line_num / 2) / 12;                // char row
-    uint sub_row = (relative_line_num / 2) % 12;            // scanline within current char row
-    uint sgidx = is_debug ? TEXT_INDEX : GetSAMSG();        // index into semigraphics table
-    uint rows_per_char  = 12 / sg_bytes_row[sgidx];         // bytes per character space vertically
-    uint8_t *fontdata = fonts[fontno].fontdata + sub_row;   // Local fontdata pointer
-    
+    uint row = (relative_line_num / 2) / 12;              // char row
+    uint sub_row = (relative_line_num / 2) % 12;          // scanline within current char row
+    uint sgidx = is_debug ? TEXT_INDEX : GetSAMSG();      // index into semigraphics table
+    uint rows_per_char = 12 / sg_bytes_row[sgidx];        // bytes per character space vertically
+    uint8_t *fontdata = fonts[fontno].fontdata + sub_row; // Local fontdata pointer
+
     if (row < 16)
     {
         // Calc start address for this row
@@ -715,8 +781,8 @@ uint16_t *do_text(scanvideo_scanline_buffer_t *buffer, uint relative_line_num, s
         {
             // Get character data from RAM and extract inv,ag,int/ext
             uint ch = eb_get(vdu_base + vdu_address + col);
-            bool inv    = (ch & INV_MASK) ? true : false;
-            bool as     = (ch & AS_MASK) ? true : false;
+            bool inv = (ch & INV_MASK) ? true : false;
+            bool as = (ch & AS_MASK) ? true : false;
             bool intext = GetIntExt(ch);
 
             uint16_t fg_colour;
@@ -724,7 +790,7 @@ uint16_t *do_text(scanvideo_scanline_buffer_t *buffer, uint relative_line_num, s
 
             // Deal with text mode first as we can decide this purely on the setting of the
             // alpha/semi bit.
-            if(!as)
+            if (!as)
             {
                 uint8_t b = fontdata[(ch & 0x3f) * 12];
 
@@ -737,7 +803,7 @@ uint16_t *do_text(scanvideo_scanline_buffer_t *buffer, uint relative_line_num, s
                     if (LOWER_INVERT)
                     {
                         bg_colour = fg_colour;
-                        fg_colour = paper;    
+                        fg_colour = paper;
                     }
                 }
                 else if (inv)
@@ -769,16 +835,16 @@ uint16_t *do_text(scanvideo_scanline_buffer_t *buffer, uint relative_line_num, s
                     }
                 }
             }
-            else        // Semigraphics
+            else // Semigraphics
             {
                 uint colour_index;
 
                 if (as && intext)
                 {
-                    sgidx = SG6_INDEX;           // SG6
+                    sgidx = SG6_INDEX; // SG6
                 }
 
-                colour_index = (SG6_INDEX == sgidx) ? (ch & SG6_COL_MASK) >> SG6_COL_SHIFT :  (ch & SG4_COL_MASK) >> SG4_COL_SHIFT;
+                colour_index = (SG6_INDEX == sgidx) ? (ch & SG6_COL_MASK) >> SG6_COL_SHIFT : (ch & SG4_COL_MASK) >> SG4_COL_SHIFT;
 
                 if (alt_colour() && (SG6_INDEX == sgidx))
                 {
@@ -786,7 +852,7 @@ uint16_t *do_text(scanvideo_scanline_buffer_t *buffer, uint relative_line_num, s
                 }
 
                 fg_colour = colour_palette_atom[colour_index];
-            
+
                 uint pix_row = (SG6_INDEX == sgidx) ? 2 - (sub_row / 4) : 1 - (sub_row / 6);
 
                 uint16_t pix0 = ((ch >> (pix_row * 2)) & 0x1) ? fg_colour : bg_colour;
@@ -809,7 +875,7 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
     const uint line_num = scanvideo_scanline_number(buffer->scanline_id);
     uint16_t *p = (uint16_t *)buffer->data;
     int relative_line_num = line_num - vertical_offset;
-    uint16_t *art_palette = (1 == artifact) ? colour_palette_artifact1 : colour_palette_artifact2; 
+    uint16_t *art_palette = (1 == artifact) ? colour_palette_artifact1 : colour_palette_artifact2;
 
     if (line_num == 0)
     {
@@ -839,18 +905,18 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
         // Add left border
         p = add_border(p, border_colour, horizontal_offset - 1);
 
-        if (line_num >= debug_start && line_num < debug_end)    // Debug in 'text' mode
+        if (line_num >= debug_start && line_num < debug_end) // Debug in 'text' mode
         {
             // p = do_text(buffer, line_num - debug_start, debug_text, p, true);
         }
-        else if (!(mode & 1))                                   // Alphanumeric or Semigraphics
+        else if (!(mode & 1)) // Alphanumeric or Semigraphics
         {
             if (relative_line_num >= 0 && relative_line_num < (16 * 24))
             {
                 p = do_text(buffer, relative_line_num, GetVidMemBase(), p, false);
             }
         }
-        else                                                    // Grapics modes
+        else // Grapics modes
         {
             const int height = get_height(mode);
             relative_line_num = (relative_line_num / 2) * height / 192;
@@ -880,7 +946,7 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
                             bp += 4;
                         }
                         uint x = (word >> 30) & 0b11;
-                        uint16_t colour=palette[x];
+                        uint16_t colour = palette[x];
                         if (pixel_count == 128)
                         {
                             *p++ = colour;
@@ -912,7 +978,7 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
                         if (pixel_count == 256)
                         {
                             if (0 == artifact)
-                            {    
+                            {
                                 for (uint32_t mask = 0x80000000; mask > 0;)
                                 {
                                     uint16_t colour = (b & mask) ? fg : 0;
@@ -939,16 +1005,16 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
                             else
                             {
                                 uint32_t word = b;
-                                for (uint apixel=0; apixel < 16; apixel++)
+                                for (uint apixel = 0; apixel < 16; apixel++)
                                 {
                                     uint acol = (word >> 30) & 0b11;
                                     uint16_t colour = art_palette[acol];
-                                    
+
                                     *p++ = colour;
                                     *p++ = colour;
                                     *p++ = colour;
                                     *p++ = colour;
-                                
+
                                     word = word << 2;
                                 }
                             }
@@ -1052,9 +1118,9 @@ uint16_t *do_text_vga80(scanvideo_scanline_buffer_t *buffer, uint relative_line_
         uint vga80_ctrl2 = eb_get(COL80_BG);
 
         *p++ = COMPOSABLE_RAW_RUN;
-        *p++ = BLACK;       // Extra black pixel
-        *p++ = 642 - 3;     //
-        *p++ = BLACK;       // Extra black pixel
+        *p++ = BLACK;   // Extra black pixel
+        *p++ = 642 - 3; //
+        *p++ = BLACK;   // Extra black pixel
 
         // For efficiency, compute two pixels at a time using a lookup table
         // p is now on a word boundary due to the extra pixels above
@@ -1089,7 +1155,7 @@ uint16_t *do_text_vga80(scanvideo_scanline_buffer_t *buffer, uint relative_line_
                 {
 #if (PLATFORM == PLATFORM_DRAGON)
                     ch ^= 0x60;
-#endif                    
+#endif
                     // Text
                     uint8_t b = fd[(ch & 0x7f) * 12];
                     if (ch >= 0x80)
@@ -1118,12 +1184,12 @@ uint16_t *do_text_vga80(scanvideo_scanline_buffer_t *buffer, uint relative_line_
             uint32_t *vp = vga80_lut + (attr << 2);
             for (int col = 0; col < 80; col++)
             {
-                uint ch     = eb_get(char_addr++);
-                bool inv    = (ch & INV_MASK) ? true : false;
-            
+                uint ch = eb_get(char_addr++);
+                bool inv = (ch & INV_MASK) ? true : false;
+
 #if (PLATFORM == PLATFORM_DRAGON)
                 ch ^= 0x40;
-#endif                    
+#endif
                 uint8_t b = fd[(ch & 0x7f) * 12];
                 if (inv)
                 {
@@ -1174,7 +1240,6 @@ void draw_color_bar_vga80(scanvideo_scanline_buffer_t *buffer)
     buffer->status = SCANLINE_OK;
 }
 
-
 void core1_func()
 {
 #ifdef GENLOCK
@@ -1184,10 +1249,15 @@ void core1_func()
     // initialize video and interrupts on core 1
     initialize_vga80();
     scanvideo_setup(&vga_mode);
+
+    // TODO - work out how to configure the video GPIO pins!
+    // Grab the uart pins back from the video function
+    gpio_set_function(0, GPIO_FUNC_UART);
+    gpio_set_function(1, GPIO_FUNC_UART);
+
 #ifdef GENLOCK
     genlock_initialize();
 #endif
-    initialiseIO();
     scanvideo_timing_enable(true);
     sem_release(&video_initted);
     uint last_vga80 = -1;
@@ -1206,17 +1276,17 @@ void core1_func()
         scanvideo_end_scanline_generation(scanline_buffer);
         if (vga80 != last_vga80)
         {
-           if (vga80)
-           {
-              gpio_set_outover(PICO_SCANVIDEO_SYNC_PIN_BASE, GPIO_OVERRIDE_INVERT);
-              gpio_set_outover(PICO_SCANVIDEO_SYNC_PIN_BASE + 1, GPIO_OVERRIDE_INVERT);
-           }
-           else
-           {
-              gpio_set_outover(PICO_SCANVIDEO_SYNC_PIN_BASE, GPIO_OVERRIDE_NORMAL);
-              gpio_set_outover(PICO_SCANVIDEO_SYNC_PIN_BASE + 1, GPIO_OVERRIDE_NORMAL);
-           }
-           last_vga80 = vga80;
+            if (vga80)
+            {
+                gpio_set_outover(PICO_SCANVIDEO_SYNC_PIN_BASE, GPIO_OVERRIDE_INVERT);
+                gpio_set_outover(PICO_SCANVIDEO_SYNC_PIN_BASE + 1, GPIO_OVERRIDE_INVERT);
+            }
+            else
+            {
+                gpio_set_outover(PICO_SCANVIDEO_SYNC_PIN_BASE, GPIO_OVERRIDE_NORMAL);
+                gpio_set_outover(PICO_SCANVIDEO_SYNC_PIN_BASE + 1, GPIO_OVERRIDE_NORMAL);
+            }
+            last_vga80 = vga80;
         }
 #ifdef GENLOCK
         genlock_mode_t genlock_mode = vga80 ? GENLOCK_OFF : genlock_setting;

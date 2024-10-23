@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 
+set(PICO_BOARD pico2 CACHE STRING "Board type")
+
 include(pico_sdk_import.cmake)
 include(pico_extras_import.cmake)
 project(atomvga_project)
@@ -7,12 +9,11 @@ project(atomvga_project)
 pico_sdk_init()
 
 
+
 add_compile_definitions(PICO_NO_FPGA_CHECK=1)
 add_compile_definitions(PICO_BARE_METAL=1)
 add_compile_definitions(PICO_CXX_ENABLE_EXCEPTIONS=0)
 #add_compile_definitions(PICO_STDIO_UART=0)
-
-
 
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter" )
 
@@ -26,6 +27,7 @@ add_executable(atomvga
   genlock.c
   atom_if.c
   atom_sid.cc
+  exodecr.c
   reSID16/envelope.cc
   reSID16/extfilt.cc
   reSID16/pot.cc
@@ -40,7 +42,7 @@ pico_generate_pio_header(atomvga ${CMAKE_CURRENT_LIST_DIR}/genlock.pio)
 
 target_compile_definitions(atomvga PUBLIC -DGENLOCK= -DINCLUDE_BRIGHT_ORANGE=1 -DPLATFORM=PLATFORM_ATOM -DPICO_SCANVIDEO_MAX_SCANLINE_BUFFER_WORDS=800 -DPICO_SCANVIDEO_SCANLINE_BUFFER_COUNT=16)
 target_compile_definitions(atomvga PRIVATE PICO_MALLOC_PANIC=0)
-target_compile_definitions(atomvga PRIVATE PICO_USE_MALLOC_MUTEX=0)
+target_compile_definitions(atomvga PRIVATE PICO_USE_MALLOC_MUTEX=1)
 target_compile_definitions(atomvga PRIVATE PICO_DEBUG_MALLOC=0)
 target_compile_options(atomvga PRIVATE -save-temps -fverbose-asm)
 
@@ -54,7 +56,8 @@ target_link_libraries(atomvga PRIVATE
 
 pico_add_extra_outputs(atomvga)
 pico_enable_stdio_uart(atomvga 1)
-pico_set_linker_script(atomvga ${CMAKE_CURRENT_LIST_DIR}/memmap_copy_to_ram.ld)
+# pico_set_linker_script(atomvga ${CMAKE_CURRENT_LIST_DIR}/memmap_copy_to_ram.ld)
+pico_set_linker_script(atomvga ${CMAKE_CURRENT_LIST_DIR}/memmap_copy_to_ram_pico2.ld)
 
 pico_set_binary_type(atomvga copy_to_ram)
 
