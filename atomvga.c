@@ -71,14 +71,6 @@ volatile uint8_t artifact = 0;
 
 volatile bool reset_flag = false;
 
-// Initialise the GPIO pins - overrides whatever the scanvideo library did
-static void initialiseIO()
-{
-    // Grab the uart pins back from the video function
-    gpio_set_function(0, GPIO_FUNC_UART);
-    gpio_set_function(1, GPIO_FUNC_UART);
-}
-
 void reset_vga80();
 
 void core1_func();
@@ -1177,10 +1169,15 @@ void core1_func()
     // initialize video and interrupts on core 1
     initialize_vga80();
     scanvideo_setup(&vga_mode);
+
+    // TODO - work out how to configure the video GPIO pins!
+    // Grab the uart pins back from the video function
+    gpio_set_function(0, GPIO_FUNC_UART);
+    gpio_set_function(1, GPIO_FUNC_UART);
+
 #ifdef GENLOCK
     genlock_initialize();
 #endif
-    initialiseIO();
     scanvideo_timing_enable(true);
     sem_release(&video_initted);
     uint last_vga80 = -1;

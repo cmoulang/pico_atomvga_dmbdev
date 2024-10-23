@@ -1,6 +1,6 @@
 #include "atom_if.h"
 
-volatile _Alignas(EB_BUFFER_LENGTH*2) uint16_t _eb_memory[EB_BUFFER_LENGTH] __attribute__ ((section (".uninitialized_dma_buffer")));
+volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2) _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
 
 #define EB_EVENT_QUEUE_BITS 5
 #define EB_EVENT_QUEUE_LEN ((1 << EB_EVENT_QUEUE_BITS) / __SIZEOF_INT__)
@@ -13,7 +13,7 @@ static uint eb_event_chan;
 
 static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
 {
-    uint offset;
+    int offset;
     pio_sm_config c;
 
     if (r65c02mode)
@@ -26,6 +26,7 @@ static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
         offset = pio_add_program(pio, &eb2_addr_other_program);
         c = eb2_addr_other_program_get_default_config(offset);
     }
+    assert(offset >= 0);
 
     (pio)->input_sync_bypass = (0xFF << PIN_A0) | (1 << PIN_R_NW);
 
@@ -40,6 +41,9 @@ static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
         pio_gpio_init(pio, pin);
         gpio_set_pulls(pin, true, false);
     }
+
+    pio_gpio_init(pio, PIN_1MHZ);
+    pio_gpio_init(pio, PIN_R_NW);
 
     pio_sm_set_pins_with_mask(pio, sm,
                               (0x07 << PIN_MUX_DATA),
@@ -73,6 +77,7 @@ static void eb2_access_program_init(PIO pio, int sm)
     int offset;
 
     offset = pio_add_program(pio, &eb2_access_program);
+    assert(offset >= 0);
 
     pio_sm_config c = eb2_access_program_get_default_config(offset);
     sm_config_set_jmp_pin(&c, PIN_R_NW);

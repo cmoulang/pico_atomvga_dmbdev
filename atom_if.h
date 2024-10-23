@@ -31,7 +31,7 @@ enum eb_perm
 #endif
 };
 
-extern volatile _Alignas(EB_BUFFER_LENGTH * 2) uint16_t _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
+extern volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2) _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
 
 /// @brief initialise and start the PIO and DMA interface to the 6502 bus
 /// @param pio the pio instance to use
