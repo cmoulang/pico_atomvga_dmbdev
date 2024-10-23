@@ -85,15 +85,16 @@ typedef struct
     int freq;
     int pinc;
     uint32_t p;
+    uint32_t sample;
 } sc_voc_voice;
 
 static volatile sc_voc_voice sc_voc[SC_NOOF_VOICES];
 
 static struct repeating_timer sc_timer;
 
-/// @brief get a byte from a sid register 
+/// @brief get a byte from a sid register
 /// @param reg the register 0-28
-/// @return 
+/// @return
 static inline uint sid_get(uint16_t reg)
 {
     return eb_get(SID_BASE_ADDR + reg);
@@ -152,17 +153,26 @@ static inline uint16_t sc_voc_next_sample(int index)
     }
     else if (control & SC_OSC_NOISE)
     {
-        if (control & 0x1) {
-            voice->p = rand();
+        if (control & 0x1)
+        {
+            uint32_t x = voice->p >> 30;
+            uint32_t y = (x + voice->pinc) >> 30;
+            if (x != y)
+            {
+                voice->sample = rand();
+            }
         }
-        result = voice->p >> 16;
+        result = voice->sample >> 16;
     }
     else if (control & SC_OSC_PULSE)
     {
         uint32_t x = voice->p;
-        if (x & (1 << 31)) {
+        if (x & (1 << 31))
+        {
             result = 0xFFFF;
-        } else {
+        }
+        else
+        {
             result = 0;
         }
     }
@@ -174,7 +184,7 @@ bool sc_timer_callback(struct repeating_timer *t)
     static int sample;
     pwm_set_gpio_level(SC_PIN, sample);
 
-    sample += sc_voc_next_sample(0);
+    sample = sc_voc_next_sample(0);
     sample += sc_voc_next_sample(1);
     int x = sid_get(MODE_VOL);
     if (!(x & MODE_3_OFF))
