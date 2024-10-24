@@ -41,8 +41,8 @@ pico_generate_pio_header(atomvga ${CMAKE_CURRENT_LIST_DIR}/sm.pio)
 pico_generate_pio_header(atomvga ${CMAKE_CURRENT_LIST_DIR}/genlock.pio)
 
 target_compile_definitions(atomvga PUBLIC -DGENLOCK= -DINCLUDE_BRIGHT_ORANGE=1 -DPLATFORM=PLATFORM_ATOM -DPICO_SCANVIDEO_MAX_SCANLINE_BUFFER_WORDS=800 -DPICO_SCANVIDEO_SCANLINE_BUFFER_COUNT=16)
-target_compile_definitions(atomvga PRIVATE PICO_MALLOC_PANIC=0)
-target_compile_definitions(atomvga PRIVATE PICO_USE_MALLOC_MUTEX=1)
+target_compile_definitions(atomvga PRIVATE PICO_MALLOC_PANIC=1)
+target_compile_definitions(atomvga PRIVATE PICO_USE_MALLOC_MUTEX=0)
 target_compile_definitions(atomvga PRIVATE PICO_DEBUG_MALLOC=0)
 target_compile_options(atomvga PRIVATE -save-temps -fverbose-asm)
 

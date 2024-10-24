@@ -5,7 +5,6 @@
  */
 #include "atom_if.h"
 #include "atom_sid.h"
-#include "sound.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -309,8 +308,10 @@ void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, ui
 
 volatile int max_count = 0;
 
+#define FIFO_LEN 64
+
 eb_int32_fifo_t fifo;
-volatile int fifo_buffer[8];
+volatile int fifo_buffer[FIFO_LEN];
 
 void event_handler()
 {
@@ -321,7 +322,7 @@ void event_handler()
     {
         count++;
         uint8_t x = eb_get(address);
-        if (address >= SID_BASE_ADDR && address <= (SID_BASE_ADDR + SID_LEN))
+        if (address >= SID_BASE_ADDR && address <= (SID_BASE_ADDR + 25))
         {
             int y = ((address - SID_BASE_ADDR) << 8) + x;
             eb_int32_fifo_put(&fifo, y);
@@ -461,11 +462,21 @@ int atomvga_main(void)
 
     eb_init(pio1);
 
+    eb_int32_fifo_init(&fifo, fifo_buffer, FIFO_LEN);
+
+    for (int i=0; i<FIFO_LEN-1; i++)
+    {
+        eb_int32_fifo_put(&fifo, i+1000);
+    } 
+
+    int x;
+    while (eb_int32_fifo_get(&fifo, &x)) {
+        printf("%d ", x);
+    }
+    puts("");
 
     //sc_init();
     as_init();
-
-    eb_int32_fifo_init(&fifo, fifo_buffer, sizeof(fifo_buffer) / 4);
     eb_set_exclusive_handler(event_handler);
 
     //sc_main_loop(&fifo);

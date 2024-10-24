@@ -33,35 +33,23 @@ typedef volatile struct eb_int32_fifo eb_int32_fifo_t;
 
 struct eb_int32_fifo {
     volatile int* buffer;
-    size_t last;
-    size_t in_index;
-    size_t out_index;
+    volatile size_t length;
+    volatile size_t in_index;
+    volatile size_t out_index;
 };
 
 inline void eb_int32_fifo_init(eb_int32_fifo_t* fifo, volatile int* buffer, size_t length)
 {
     fifo->buffer = buffer;
-    fifo->last = length-1;
+    fifo->length = length;
     fifo->in_index = 0;
     fifo->out_index = 0;
-}
-
-inline void eb_int32_fifo_inc_index(eb_int32_fifo_t* fifo, volatile size_t* index)
-{
-    if (*index == 0) 
-    {
-        *index = fifo->last;
-    }
-    else
-    {
-        *index = *index -1;
-    }
 }
 
 inline void eb_int32_fifo_put(eb_int32_fifo_t* fifo, int data)
 {
     fifo->buffer[fifo->in_index] = data;
-    eb_int32_fifo_inc_index(fifo, &fifo->in_index);
+    fifo->in_index = (fifo->in_index+1) % fifo->length;
 }
 
 inline bool eb_int32_fifo_get(eb_int32_fifo_t* fifo, int* data)
@@ -74,7 +62,7 @@ inline bool eb_int32_fifo_get(eb_int32_fifo_t* fifo, int* data)
     else
     {
         *data = fifo->buffer[fifo->out_index];
-        eb_int32_fifo_inc_index(fifo, &fifo->out_index);
+        fifo->out_index = (fifo->out_index+1) % fifo->length;
         result = true;
     }
     return result;
