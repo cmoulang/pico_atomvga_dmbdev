@@ -10,12 +10,31 @@
 #include "reSID_LUT.h"
 
 #define C64_CLOCK 1000000ll
-
-#define AS_SAMPLE_RATE 44100
+#define AS_SAMPLE_RATE 20000
 #define AS_TICK_US 1000000ll / AS_SAMPLE_RATE
 #define AS_PIN 21
-#define AS_PWM_WRAP (1 << 10)
+#define AS_PWM_BITS 10
+#define AS_PWM_WRAP (1 << AS_PWM_BITS)
 
+volatile int fifo_buffer[FIFO_LEN];
+volatile int fifo_in;
+volatile int fifo_out;
+
+static inline bool fifo_get(int *data)
+{
+    bool result;
+    if (fifo_in == fifo_out)
+    {
+        result = false;
+    }
+    else
+    {
+        *data = fifo_buffer[fifo_out];
+        fifo_out = (fifo_out + 1) % FIFO_LEN;
+        result = true;
+    }
+    return result;
+}
 
 SID16 *sid16 = NULL;
 
@@ -53,99 +72,56 @@ void tick(SID16 *sid)
     last_time = curr_time;
 }
 
-void pstate(SID16::State &s)
-{
-    puts("sid_register");
-    for (int i = 0; i < 21; i++)
-    {
-        printf("%2x ", s.sid_register[i]);
-    }
-    printf("\n bus_value: %x\n", s.bus_value);
-    printf("bus_value_ttl : %x\n", s.bus_value_ttl);
-
-    for (int i = 0; i < 3; i++)
-    {
-        printf("accumulator[%d]=%d\n", i, s.accumulator[i]);
-        printf("shift_register[%d]=%d\n", i, s.shift_register[i]);
-        printf("rate_counter[%d]=%d\n", i, s.rate_counter[i]);
-        printf("rate_counter_period[%d]=%d\n", i, s.rate_counter_period[i]);
-        printf("exponential_counter[%d]=%d\n", i, s.exponential_counter[i]);
-        printf("exponential_counter_period[%d]=%d\n", i, s.exponential_counter_period[i]);
-        printf("envelope_counter[%d]=%d\n", i, s.envelope_counter[i]);
-        printf("envelope_state[%d]=%d\n", i, s.envelope_state[i]);
-        printf("hold_zero[%d]=%d\n", i, s.hold_zero[i]);
-    }
-}
-
-int max_sample = 0;
-int min_sample = INT16_MAX;
-
-uint64_t as_timer_callback_count = 0;
-extern "C" bool as_timer_callback(struct repeating_timer *t)
-{
-    as_timer_callback_count++;
-    //    SID16 *sid = (SID16 *)t->user_data;
-
-    tick(sid16);
-
-    int sample = sid16->output(10);
-    sample = sample + (1 << 9);
-
-    if (sample > max_sample) max_sample = sample;
-    if (sample < min_sample) min_sample = sample;
-    // if (sample == 0) sample = rand() & 0xFF;
-    pwm_set_gpio_level(AS_PIN, sample);
-
-    return true;
-}
-
-extern "C" bool debug_timer_callback(struct repeating_timer *t)
-{
-    printf("{%d %d} ", min_sample, max_sample);
-    return true;
-}
-
 extern "C" void as_init()
 {
-    puts("INIT SID CALLED - fifo");
+    int rate = AS_SAMPLE_RATE;
+    int interval = AS_TICK_US;
+    puts("INIT SID CALLED - fifo " __TIMESTAMP__);
+    printf("Sample rate: %d/s\n", rate);
+    printf("Sample interval: %dus\n", interval);
+
+    fifo_in = 0;
+    fifo_out = 0;
 
     sid16 = new SID16();
-    // sid16->set_chip_model(MOS8580);
-    sid16->set_chip_model(MOS6581);
+    sid16->set_chip_model(MOS8580);
+    // sid16->set_chip_model(MOS6581);
     sid16->reset();
     bool ok = sid16->set_sampling_parameters(C64_CLOCK, SAMPLE_INTERPOLATE, AS_SAMPLE_RATE);
-    sid16->input(0);
 
     hard_assert(ok);
+    sid16->input(0);
 
     init_dac();
 
     eb_set_perm(SID_BASE_ADDR, EB_PERM_WRITE_ONLY, 25);
     eb_set_perm(SID_BASE_ADDR + 25, EB_PERM_READ_ONLY, 4);
-
-    ok = add_repeating_timer_us(-AS_TICK_US, as_timer_callback, sid16, &as_timer);
-    hard_assert(ok);
-    // ok = add_repeating_timer_us(-1000000ll, debug_timer_callback, sid16, &debug_timer);
-    // hard_assert(ok);
 }
 
-extern "C" void as_sid_write(int address, int data)
+extern "C" void as_main_loop()
 {
-}
 
-extern "C" void as_main_loop(eb_int32_fifo_t *fifo)
-{
-    last_time = time_us_64();
     for (;;)
     {
+        uint target_time = time_us_32() + AS_TICK_US;
+        int sample = sid16->output(AS_PWM_BITS);
+        sample = sample + (1 << (AS_PWM_BITS - 1));
+        pwm_set_gpio_level(AS_PIN, sample);
+
+        int ticks = AS_TICK_US;
         int x;
-        if (eb_int32_fifo_get(fifo, &x))
+        while (fifo_get(&x))
         {
             int address = x >> 8;
             int data = x & 0xFF;
             sid16->write(address, data);
             sid16->clock();
-            last_time++;
+            ticks--;
+        }
+        sid16->clock(ticks);
+        while (target_time != time_us_32())
+        {
+            tight_loop_contents();
         }
     }
 }

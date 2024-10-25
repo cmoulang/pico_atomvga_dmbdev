@@ -308,10 +308,10 @@ void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, ui
 
 volatile int max_count = 0;
 
-#define FIFO_LEN 64
+// #define FIFO_LEN 64
 
-eb_int32_fifo_t fifo;
-volatile int fifo_buffer[FIFO_LEN];
+// eb_int32_fifo_t fifo;
+// volatile int fifo_buffer[FIFO_LEN];
 
 void event_handler()
 {
@@ -324,8 +324,9 @@ void event_handler()
         uint8_t x = eb_get(address);
         if (address >= SID_BASE_ADDR && address <= (SID_BASE_ADDR + 25))
         {
-            int y = ((address - SID_BASE_ADDR) << 8) + x;
-            eb_int32_fifo_put(&fifo, y);
+            as_sid_write(address, x);
+            // int y = ((address - SID_BASE_ADDR) << 8) + x;
+            // eb_int32_fifo_put(&fifo, y);
         }
         else if (address == YARRB_REG0)
         {
@@ -408,7 +409,6 @@ int atomvga_main(void)
 #endif
 
     stdio_uart_init();
-    printf("Atom VGA built " __DATE__ " " __TIME__ "\r\n");
 
     switch_font(DEFAULT_FONT);
 
@@ -462,41 +462,28 @@ int atomvga_main(void)
 
     eb_init(pio1);
 
-    eb_int32_fifo_init(&fifo, fifo_buffer, FIFO_LEN);
+    // eb_int32_fifo_init(&fifo, fifo_buffer, FIFO_LEN);
 
-    for (int i=0; i<FIFO_LEN-1; i++)
-    {
-        eb_int32_fifo_put(&fifo, i+1000);
-    } 
+    // for (int i=0; i<FIFO_LEN-1; i++)
+    // {
+    //     eb_int32_fifo_put(&fifo, i+1000);
+    // } 
 
-    int x;
-    while (eb_int32_fifo_get(&fifo, &x)) {
-        printf("%d ", x);
-    }
-    puts("");
+    // int x;
+    // while (eb_int32_fifo_get(&fifo, &x)) {
+    //     printf("%d ", x);
+    // }
+    // puts("");
 
     //sc_init();
     as_init();
     eb_set_exclusive_handler(event_handler);
 
     //sc_main_loop(&fifo);
-    as_main_loop(&fifo);
+    as_main_loop();
 
-    // The VGA generation is running on the other core and
-    // the SID emulation is interrupt driven, so there is
-    // spare cpu capacity to do something useful here!
-    while (1)
-    {
-        sleep_ms(500);
-        printf("max count = %d\n", max_count);
-        max_count = 0;
-        int x;
-        while (eb_int32_fifo_get(&fifo, &x))
-        {
-            printf("%4x ", x);
-        }
-        puts("");
-    }
+    // SHOULD NOT BE HERE
+    return -1;
 }
 
 #if (PLATFORM == PLATFORM_ATOM)
