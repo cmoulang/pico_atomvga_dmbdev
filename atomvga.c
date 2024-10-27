@@ -308,10 +308,10 @@ void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, ui
 
 volatile int max_count = 0;
 
-// #define FIFO_LEN 64
-
-// eb_int32_fifo_t fifo;
-// volatile int fifo_buffer[FIFO_LEN];
+void as_update_reg(int address, int data)
+{
+    eb_set(SID_BASE_ADDR + address, data);
+}
 
 void event_handler()
 {
@@ -322,7 +322,7 @@ void event_handler()
     {
         count++;
         uint8_t x = eb_get(address);
-        if (address >= SID_BASE_ADDR && address <= (SID_BASE_ADDR + 25))
+        if (address >= SID_BASE_ADDR && address < (SID_BASE_ADDR + 25))
         {
             as_sid_write(address, x);
             // int y = ((address - SID_BASE_ADDR) << 8) + x;
@@ -1252,12 +1252,14 @@ void core1_func()
     // Grab the uart pins back from the video function
     gpio_set_function(0, GPIO_FUNC_UART);
     gpio_set_function(1, GPIO_FUNC_UART);
+    gpio_set_function(21, GPIO_FUNC_PWM);
 
 #ifdef GENLOCK
     genlock_initialize();
 #endif
     scanvideo_timing_enable(true);
     sem_release(&video_initted);
+
     uint last_vga80 = -1;
     while (true)
     {

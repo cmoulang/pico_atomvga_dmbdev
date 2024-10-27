@@ -29,46 +29,6 @@ extern "C" {
 
 extern volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2)  _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
 
-typedef volatile struct eb_int32_fifo eb_int32_fifo_t;
-
-struct eb_int32_fifo {
-    volatile int* buffer;
-    volatile size_t length;
-    volatile size_t in_index;
-    volatile size_t out_index;
-};
-
-inline void eb_int32_fifo_init(eb_int32_fifo_t* fifo, volatile int* buffer, size_t length)
-{
-    fifo->buffer = buffer;
-    fifo->length = length;
-    fifo->in_index = 0;
-    fifo->out_index = 0;
-}
-
-inline void eb_int32_fifo_put(eb_int32_fifo_t* fifo, int data)
-{
-    fifo->buffer[fifo->in_index] = data;
-    fifo->in_index = (fifo->in_index+1) % fifo->length;
-}
-
-inline bool eb_int32_fifo_get(eb_int32_fifo_t* fifo, int* data)
-{
-    bool result;
-    if (fifo->in_index == fifo->out_index)
-    {
-        result = false;
-    }
-    else
-    {
-        *data = fifo->buffer[fifo->out_index];
-        fifo->out_index = (fifo->out_index+1) % fifo->length;
-        result = true;
-    }
-    return result;
-}
-
-
 enum eb_perm
 {
     EB_PERM_NONE = 0,
@@ -79,7 +39,6 @@ enum eb_perm
     EB_PERM_READ_SNOOP = _EB_READ_SNOOP_FLAG,
 #endif
 };
-
 
 /// @brief initialise and start the PIO and DMA interface to the 6502 bus
 /// @param pio the pio instance to use

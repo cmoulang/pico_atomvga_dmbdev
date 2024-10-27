@@ -10,10 +10,10 @@
 #include "reSID_LUT.h"
 
 #define C64_CLOCK 1000000ll
-#define AS_SAMPLE_RATE 20000
-#define AS_TICK_US 1000000ll / AS_SAMPLE_RATE
+#define AS_TICK_US 32
+#define AS_SAMPLE_RATE 1000000ll / AS_TICK_US
 #define AS_PIN 21
-#define AS_PWM_BITS 10
+#define AS_PWM_BITS 11
 #define AS_PWM_WRAP (1 << AS_PWM_BITS)
 
 volatile int fifo_buffer[FIFO_LEN];
@@ -87,15 +87,18 @@ extern "C" void as_init()
     sid16->set_chip_model(MOS8580);
     // sid16->set_chip_model(MOS6581);
     sid16->reset();
-    bool ok = sid16->set_sampling_parameters(C64_CLOCK, SAMPLE_INTERPOLATE, AS_SAMPLE_RATE);
+    // bool ok = sid16->set_sampling_parameters(C64_CLOCK, SAMPLE_INTERPOLATE, 44100);
+    bool ok = sid16->set_sampling_parameters(C64_CLOCK, SAMPLE_FAST, AS_SAMPLE_RATE);
 
     hard_assert(ok);
+    sid16->reset();
+
     sid16->input(0);
 
     init_dac();
 
-    eb_set_perm(SID_BASE_ADDR, EB_PERM_WRITE_ONLY, 25);
-    eb_set_perm(SID_BASE_ADDR + 25, EB_PERM_READ_ONLY, 4);
+    eb_set_perm(SID_BASE_ADDR, EB_PERM_WRITE_ONLY, 0x19);
+    eb_set_perm(SID_BASE_ADDR + 0x20, EB_PERM_READ_ONLY, 4);
 }
 
 extern "C" void as_main_loop()
@@ -103,11 +106,24 @@ extern "C" void as_main_loop()
 
     for (;;)
     {
-        uint target_time = time_us_32() + AS_TICK_US;
+        // Wait for start of sampling interval
+        while (time_us_32() % AS_TICK_US)
+        {
+            tight_loop_contents();
+        }
+
+        // Output current sample
         int sample = sid16->output(AS_PWM_BITS);
         sample = sample + (1 << (AS_PWM_BITS - 1));
         pwm_set_gpio_level(AS_PIN, sample);
 
+        // Update the read-only SID regs
+        for (int i = 0; i < 4; i++)
+        {
+            as_update_reg(0x19 + i, sid16->read(0x19 + i));
+        }
+
+        // process any writes to the SID registers
         int ticks = AS_TICK_US;
         int x;
         while (fifo_get(&x))
@@ -118,10 +134,11 @@ extern "C" void as_main_loop()
             sid16->clock();
             ticks--;
         }
-        sid16->clock(ticks);
-        while (target_time != time_us_32())
+
+        // Clock remianing CPU cycles
+        if (ticks > 0)
         {
-            tight_loop_contents();
+            sid16->clock(ticks);
         }
     }
 }

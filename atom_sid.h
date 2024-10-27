@@ -6,21 +6,22 @@
 extern volatile int fifo_buffer[FIFO_LEN];
 extern volatile int fifo_in;
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 // The Atom SID sound board uses #BDC0 to #BDDF
 #define SID_BASE_ADDR 0xBDC0
 #define SID_WRITEABLE 25
 #define SID_LEN 29
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
     void as_init();
     void as_main_loop();
-    static inline void as_sid_write(int address, int data)
+    void as_update_reg(int address, int data);
+
+    static inline void as_sid_write(uint16_t address, uint8_t data)
     {
-        int y = ((address - SID_BASE_ADDR) << 8) + data;
+        int y = ((address - SID_BASE_ADDR) << 8) | data;
         fifo_buffer[fifo_in] = y;
         fifo_in = (fifo_in + 1) % FIFO_LEN;
     }
