@@ -47,7 +47,7 @@ delay:  jmp     y--, delay
 .wrap
 
 
-.program eb2_addr_other
+.program eb2_addr_other_32
 ; calculates a pico address from the 6502's address and pushes it to the DMA channel
 ; pico_address = buffer_address + (6502_address * 2)
 ; (* 2 because we need the u16 that contains the read/write flags AND data)
@@ -78,7 +78,7 @@ x8nnn:
 .wrap
 
 
-.program eb2_addr_other_64
+.program eb2_addr_other
 ; calculates a pico address from the 6502's address and pushes it to the DMA channel
 ; pico_address = buffer_address + (6502_address * 2)
 ; (* 2 because we need the u16 that contains the read/write flags AND data)

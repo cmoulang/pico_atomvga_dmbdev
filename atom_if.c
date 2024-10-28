@@ -60,10 +60,10 @@ static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
     sm_config_set_sideset(&c, 4, true, false);
     sm_config_set_sideset_pins(&c, PIN_MUX_DATA);
 
-    sm_config_set_in_shift(&c, false, true, 16);
+    sm_config_set_in_shift(&c, false, true, 17);
 
     // Calculate address for PIO
-    uint address = (uint)&_eb_memory >> 16;
+    uint address = (uint)&_eb_memory >> 17;
 
     int status;
     status = pio_sm_init(pio, sm, offset, &c);
@@ -232,7 +232,7 @@ int eb_get_event()
     else
     {
         uint pico_address = *out_ptr;
-        result = 0x8000 + (pico_address - (uint)&_eb_memory) / 2;
+        result = (pico_address - (uint)&_eb_memory) / 2;
         out_ptr++;
         if (out_ptr > &eb_event_queue[EB_EVENT_QUEUE_LEN - 1])
         {

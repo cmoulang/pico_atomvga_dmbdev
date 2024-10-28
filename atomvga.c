@@ -316,11 +316,9 @@ void event_handler()
     {
         count++;
         uint8_t x = eb_get(address);
-        if (address >= SID_BASE_ADDR && address < (SID_BASE_ADDR + 25))
+        if (address >= SID_BASE_ADDR && address < (SID_BASE_ADDR + SID_LEN))
         {
             as_sid_write(address, x);
-            // int y = ((address - SID_BASE_ADDR) << 8) + x;
-            // eb_int32_fifo_put(&fifo, y);
         }
         else if (address == YARRB_REG0)
         {
@@ -444,21 +442,6 @@ int atomvga_main(void)
     puts("VIDEO INITIALISED");
 
     eb_init(pio1);
-
-    // eb_int32_fifo_init(&fifo, fifo_buffer, FIFO_LEN);
-
-    // for (int i=0; i<FIFO_LEN-1; i++)
-    // {
-    //     eb_int32_fifo_put(&fifo, i+1000);
-    // } 
-
-    // int x;
-    // while (eb_int32_fifo_get(&fifo, &x)) {
-    //     printf("%d ", x);
-    // }
-    // puts("");
-
-    //sc_init();
     as_init();
     eb_set_exclusive_handler(event_handler);
 
@@ -466,7 +449,7 @@ int atomvga_main(void)
     as_main_loop();
 
     // SHOULD NOT BE HERE
-    return -1;
+    for (;;){};
 }
 
 #if (PLATFORM == PLATFORM_ATOM)

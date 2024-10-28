@@ -9,10 +9,9 @@
 #include <stdio.h>
 
 #define EB_ADD_BITS 16
-#define EB_ADDRESS_LOW 0x8000
 #define EB_ADDRESS_HIGH 0x10000
-#define EB_BUFFER_LENGTH 0x8000
-#define EB_ADDRESS_LOW 0x8000
+#define EB_BUFFER_LENGTH 0x10000
+#define EB_ADDRESS_LOW 0x0
 #define EB_65C02_MAGIC_NUMBER 0x65C02
 
 // set to 1 to enable snooping reads to 6502 peripherals
@@ -67,11 +66,8 @@ static inline void eb_set_perm_byte(uint16_t address, enum eb_perm perm)
         if (address < perm_low)
             perm_low = address;
     }
-    if (address & 0x8000)
-    {
-        volatile uint8_t *p = (uint8_t *)&_eb_memory[address & 0x7FFF] + 1;
+        volatile uint8_t *p = (uint8_t *)&_eb_memory[address] + 1;
         *p = perm;
-    }
 }
 
 /// @brief set the read/write permissions for a range of addresses
@@ -92,7 +88,7 @@ static inline void eb_set_perm(uint16_t start, enum eb_perm perm, size_t size)
 /// @return the value of the byte
 static inline uint8_t eb_get(uint16_t address)
 {
-    return _eb_memory[address & 0x7FFF] & 0xFF;
+    return _eb_memory[address] & 0xFF;
 }
 
 /// @brief get a 32 bit value
@@ -114,11 +110,8 @@ static inline uint32_t eb_get32(uint16_t address)
 /// @param value the new value
 static inline void eb_set(uint16_t address, unsigned char value)
 {
-    if (address & 0x8000)
-    {
-        volatile uint8_t *p = (uint8_t *)&_eb_memory[address & 0x7FFF];
+        volatile uint8_t *p = (uint8_t *)&_eb_memory[address];
         *p = value;
-    }
 }
 
 /// @brief get a string of chars
