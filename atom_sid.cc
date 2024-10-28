@@ -35,7 +35,7 @@ static inline bool fifo_get(int *data)
 
 SID16 *sid16 = NULL;
 
-void init_dac()
+static void init_dac()
 {
     gpio_set_dir(AS_PIN, GPIO_OUT);
     gpio_set_function(AS_PIN, GPIO_FUNC_PWM);
@@ -110,7 +110,7 @@ static inline void do_sample()
     }
 }
 
-bool as_timer_callback(repeating_timer_t *rt)
+static bool as_timer_callback(repeating_timer_t *rt)
 {
     do_sample();
     return true;
@@ -122,7 +122,4 @@ extern "C" void as_run()
 {
     bool ok = add_repeating_timer_us(-(int64_t)AS_TICK_US, as_timer_callback, sid16, &as_timer);
     hard_assert(ok);
-    for (;;)
-    {
-    }
 }
