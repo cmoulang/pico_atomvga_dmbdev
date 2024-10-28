@@ -95,7 +95,7 @@ extern "C" void as_init()
     init_dac();
 
     eb_set_perm(SID_BASE_ADDR, EB_PERM_WRITE_ONLY, 0x19);
-    eb_set_perm(SID_BASE_ADDR + 0x20, EB_PERM_READ_ONLY, 4);
+    eb_set_perm(SID_BASE_ADDR + 0x1A, EB_PERM_READ_ONLY, 4);
 }
 
 extern "C" void as_main_loop()

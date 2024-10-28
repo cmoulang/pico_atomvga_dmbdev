@@ -445,7 +445,6 @@ int atomvga_main(void)
     as_init();
     eb_set_exclusive_handler(event_handler);
 
-    //sc_main_loop(&fifo);
     as_main_loop();
 
     // SHOULD NOT BE HERE
