@@ -190,10 +190,11 @@ void update_debug_text()
     }
 }
 
+#if (PLATFORM == PLATFORM_ATOM)
+
 #define _command_buffer_length 30
 char _command_buffer[_command_buffer_length];
 
-#if (PLATFORM == PLATFORM_ATOM)
 bool is_command(char *cmd,
                 char **params)
 {
@@ -306,13 +307,6 @@ void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, ui
     }
 }
 
-volatile int max_count = 0;
-
-void as_update_reg(int address, int data)
-{
-    eb_set(SID_BASE_ADDR + address, data);
-}
-
 void event_handler()
 {
     dma_hw->ints1 = 1u << eb_get_event_chan();
@@ -348,24 +342,14 @@ void event_handler()
             {
                 puts("");
             }
-            else
-            {
-
-                // printf("[%x]\n", x);
-            }
         }
-
         address = eb_get_event();
-    }
-    if (count > max_count)
-    {
-        max_count = count;
     }
 }
 
 void beep()
 {
-        gpio_init(21);
+    gpio_init(21);
     gpio_set_dir(21, true);
     gpio_set_drive_strength(21, GPIO_DRIVE_STRENGTH_12MA);
     for (int i = 0; i < 50; i++)
@@ -375,7 +359,6 @@ void beep()
         sleep_ms(1);
         gpio_put(21, 1);
     }
-
 }
 
 int atomvga_main(void)

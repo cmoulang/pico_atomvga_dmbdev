@@ -1,13 +1,10 @@
 #include "atom_sid.h"
-#include "atom_if.h"
 #include "reSID16/sid.h"
 #include "hardware/pwm.h"
 #include <hardware/clocks.h>
 #include <math.h>
 
 #include <stdio.h>
-
-#include "reSID_LUT.h"
 
 #define C64_CLOCK 1000000ll
 #define AS_TICK_US 32
@@ -118,10 +115,10 @@ extern "C" void as_main_loop()
         pwm_set_gpio_level(AS_PIN, sample);
 
         // Update the read-only SID regs
-        for (int i = 0; i < 4; i++)
-        {
-            as_update_reg(0x19 + i, sid16->read(0x19 + i));
-        }
+        as_update_reg(0x19, sid16->read(0x19));
+        as_update_reg(0x1A, sid16->read(0x1A));
+        as_update_reg(0x1B, sid16->read(0x1B));
+        as_update_reg(0x1C, sid16->read(0x1C));
 
         // process any writes to the SID registers
         int ticks = AS_TICK_US;

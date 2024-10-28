@@ -17,7 +17,11 @@ extern "C"
 #endif
     void as_init();
     void as_main_loop();
-    void as_update_reg(int address, int data);
+
+    static inline void as_update_reg(uint8_t reg, uint8_t data)
+    {
+        eb_set(SID_BASE_ADDR + reg, data);
+    }
 
     static inline void as_sid_write(uint16_t address, uint8_t data)
     {

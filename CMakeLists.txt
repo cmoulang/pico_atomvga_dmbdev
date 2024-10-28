@@ -27,7 +27,6 @@ add_executable(atomvga
   genlock.c
   atom_if.c
   atom_sid.cc
-  exodecr.c
   reSID16/envelope.cc
   reSID16/extfilt.cc
   reSID16/pot.cc
