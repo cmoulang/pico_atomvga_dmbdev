@@ -16,7 +16,7 @@ extern "C"
 {
 #endif
     void as_init();
-    void as_main_loop();
+    void as_run();
 
     static inline void as_update_reg(uint8_t reg, uint8_t data)
     {

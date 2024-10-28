@@ -412,7 +412,7 @@ int atomvga_main(void)
     print_str(5, __DATE__ " " __TIME__);
     snprintf(mess, 32, "BASE=%04X, PIA=%04X", GetVidMemBase(), PIA_ADDR);
     print_str(6, mess);
-    print_str(7, "DMA VERSION");
+    print_str(7, "SID VERSION");
 
     if (watchdog_hw->scratch[0] == EB_65C02_MAGIC_NUMBER)
     {
@@ -445,9 +445,8 @@ int atomvga_main(void)
     as_init();
     eb_set_exclusive_handler(event_handler);
 
-    as_main_loop();
+    as_run();
 
-    // SHOULD NOT BE HERE
     for (;;){};
 }
 

@@ -6,9 +6,9 @@
 
 #include <stdio.h>
 
-#define C64_CLOCK 1000000ll
+#define C64_CLOCK 1000000
 #define AS_TICK_US 32
-#define AS_SAMPLE_RATE 1000000ll / AS_TICK_US
+#define AS_SAMPLE_RATE 1000000 / AS_TICK_US
 #define AS_PIN 21
 #define AS_PWM_BITS 11
 #define AS_PWM_WRAP (1 << AS_PWM_BITS)
@@ -51,29 +51,11 @@ void init_dac()
     pwm_set_enabled(audio_pin_slice, true);
 }
 
-static struct repeating_timer as_timer;
-static struct repeating_timer debug_timer;
-
-volatile uint64_t last_time;
-
-void tick(SID16 *sid)
-{
-    uint64_t curr_time = time_us_64();
-    uint elapsed = (uint)(curr_time - last_time);
-    elapsed = elapsed & 0xFF;
-    if (elapsed == 0)
-    {
-        elapsed = 1;
-    }
-    sid->clock(elapsed);
-    last_time = curr_time;
-}
-
 extern "C" void as_init()
 {
     int rate = AS_SAMPLE_RATE;
     int interval = AS_TICK_US;
-    puts("INIT SID CALLED - fifo " __TIMESTAMP__);
+    puts("INIT SID CALLED - interrupt driven version " __TIMESTAMP__);
     printf("Sample rate: %d/s\n", rate);
     printf("Sample interval: %dus\n", interval);
 
@@ -98,44 +80,49 @@ extern "C" void as_init()
     eb_set_perm(SID_BASE_ADDR + 0x1A, EB_PERM_READ_ONLY, 4);
 }
 
-extern "C" void as_main_loop()
+static inline void do_sample()
 {
+    // Output current sample
+    int sample = sid16->output(AS_PWM_BITS);
+    sample = sample + (1 << (AS_PWM_BITS - 1));
+    pwm_set_gpio_level(AS_PIN, sample);
 
+    // Update the read-only SID regs
+    as_update_reg(0x19, sid16->read(0x19));
+    as_update_reg(0x1A, sid16->read(0x1A));
+    as_update_reg(0x1B, sid16->read(0x1B));
+    as_update_reg(0x1C, sid16->read(0x1C));
+
+    // process any writes to the SID registers
+    int ticks = AS_TICK_US;
+    int x;
+    while (fifo_get(&x))
+    {
+        int address = x >> 8;
+        int data = x & 0xFF;
+        sid16->write(address, data);
+        sid16->clock();
+        ticks--;
+    }
+    if (ticks > 0)
+    {
+        sid16->clock(ticks);
+    }
+}
+
+bool as_timer_callback(repeating_timer_t *rt)
+{
+    do_sample();
+    return true;
+}
+
+static struct repeating_timer as_timer;
+
+extern "C" void as_run()
+{
+    bool ok = add_repeating_timer_us(-(int64_t)AS_TICK_US, as_timer_callback, sid16, &as_timer);
+    hard_assert(ok);
     for (;;)
     {
-        // Wait for start of sampling interval
-        while (time_us_32() % AS_TICK_US)
-        {
-            tight_loop_contents();
-        }
-
-        // Output current sample
-        int sample = sid16->output(AS_PWM_BITS);
-        sample = sample + (1 << (AS_PWM_BITS - 1));
-        pwm_set_gpio_level(AS_PIN, sample);
-
-        // Update the read-only SID regs
-        as_update_reg(0x19, sid16->read(0x19));
-        as_update_reg(0x1A, sid16->read(0x1A));
-        as_update_reg(0x1B, sid16->read(0x1B));
-        as_update_reg(0x1C, sid16->read(0x1C));
-
-        // process any writes to the SID registers
-        int ticks = AS_TICK_US;
-        int x;
-        while (fifo_get(&x))
-        {
-            int address = x >> 8;
-            int data = x & 0xFF;
-            sid16->write(address, data);
-            sid16->clock();
-            ticks--;
-        }
-
-        // Clock remianing CPU cycles
-        if (ticks > 0)
-        {
-            sid16->clock(ticks);
-        }
     }
 }
