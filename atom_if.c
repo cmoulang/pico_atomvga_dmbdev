@@ -2,7 +2,7 @@
 
 volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2) _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
 
-#define EB_EVENT_QUEUE_BITS 6
+#define EB_EVENT_QUEUE_BITS 7
 #define EB_EVENT_QUEUE_LEN ((1 << EB_EVENT_QUEUE_BITS) / __SIZEOF_INT__)
 
 static _Alignas(1 << EB_EVENT_QUEUE_BITS) uint32_t eb_event_queue[EB_EVENT_QUEUE_LEN];

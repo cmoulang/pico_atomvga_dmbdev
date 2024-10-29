@@ -23,10 +23,11 @@
 #define _EB_READ_SNOOP_FLAG 0b100
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-extern volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2)  _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
+extern volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2) _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
 
 enum eb_perm
 {
@@ -77,9 +78,9 @@ static inline void eb_set_perm_byte(uint16_t address, enum eb_perm perm)
 static inline void eb_set_perm(uint16_t start, enum eb_perm perm, size_t size)
 {
     hard_assert(start + size <= EB_ADDRESS_HIGH);
-    for (size_t i = start; i < start + size; i++)
+    for (size_t i = 0; i < size; i++)
     {
-        eb_set_perm_byte(i, perm);
+        eb_set_perm_byte(start + i, perm);
     }
 }
 
