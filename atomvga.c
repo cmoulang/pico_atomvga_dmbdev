@@ -5,6 +5,7 @@
  */
 #include "atom_if.h"
 #include "atom_sid.h"
+#include "atom_term.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -315,13 +316,14 @@ void event_handler()
     while (address > 0)
     {
         count++;
-        uint8_t x = eb_get(address);
         if (address >= SID_BASE_ADDR && address < (SID_BASE_ADDR + SID_LEN))
         {
-            as_sid_write(address, x);
+            uint8_t x = eb_get(address);
+            as_sid_write(address & 0x1F, x);
         }
         else if (address == YARRB_REG0)
         {
+            uint8_t x = eb_get(address);
             if ((x & YARRB_4MHZ) && (watchdog_hw->scratch[0] != EB_65C02_MAGIC_NUMBER))
             {
                 // Stop the 6502 interface, set the magic number and reboot in 65C02 mode
@@ -332,14 +334,8 @@ void event_handler()
         }
         else if (address == VIA_DA)
         {
-            if (isprint(x))
-            {
-                putchar(x);
-            }
-            else if (x == 13)
-            {
-                puts("");
-            }
+            uint8_t x = eb_get(address);
+            at_putchar(x);
         }
         address = eb_get_event();
     }
@@ -443,11 +439,16 @@ int atomvga_main(void)
 
     eb_init(pio1);
     as_init();
+    at_init();
     eb_set_exclusive_handler(event_handler);
 
     as_run();
 
-    for (;;){};
+    for (;;)
+    {
+        sleep_ms(10);
+        at_poll();
+    };
 }
 
 #if (PLATFORM == PLATFORM_ATOM)

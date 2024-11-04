@@ -18,14 +18,16 @@ extern "C"
     void as_init();
     void as_run();
 
+    void as_show_status();
+
     static inline void as_update_reg(uint8_t reg, uint8_t data)
     {
         eb_set(SID_BASE_ADDR + reg, data);
     }
 
-    static inline void as_sid_write(uint16_t address, uint8_t data)
+    static inline void as_sid_write(uint8_t address, uint8_t data)
     {
-        int y = ((address - SID_BASE_ADDR) << 8) | data;
+        int y = (address << 8) | data;
         fifo_buffer[fifo_in] = y;
         fifo_in = (fifo_in + 1) % FIFO_LEN;
     }

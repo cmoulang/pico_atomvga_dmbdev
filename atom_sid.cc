@@ -1,5 +1,5 @@
 #include "atom_sid.h"
-#include "reSID16/sid.h"
+#include "resid-0.16/sid.h"
 #include "hardware/pwm.h"
 #include <hardware/clocks.h>
 #include <math.h>
@@ -33,7 +33,7 @@ static inline bool fifo_get(int *data)
     return result;
 }
 
-SID16 *sid16 = NULL;
+SID *sid16 = NULL;
 
 static void init_dac()
 {
@@ -62,7 +62,7 @@ extern "C" void as_init()
     fifo_in = 0;
     fifo_out = 0;
 
-    sid16 = new SID16();
+    sid16 = new SID();
     // sid16->set_chip_model(MOS8580);
     sid16->set_chip_model(MOS6581);
     sid16->reset();
@@ -73,6 +73,10 @@ extern "C" void as_init()
     sid16->reset();
 
     sid16->input(0);
+    for (int i=0; i<SID_LEN; i++)
+    {
+        sid16->write(i,0);
+    }
 
     init_dac();
 
@@ -115,7 +119,7 @@ static inline void do_sample()
             }
         }
 #endif
-        int address = x >> 8;
+        int address = (x >> 8) & 0x1F;
         int data = x & 0xFF;
         sid16->write(address, data);
         sid16->clock(1);

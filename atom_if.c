@@ -173,7 +173,7 @@ static void eb_setup_dma(PIO pio, int eb2_address_sm,
 
     // Updates the event queue
     c = dma_channel_get_default_config(eb_event_chan);
-    // channel_config_set_high_priority(&c, true);
+    channel_config_set_high_priority(&c, true);
     channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
     channel_config_set_read_increment(&c, false);
     channel_config_set_write_increment(&c, true);
@@ -232,6 +232,8 @@ int eb_get_event()
     else
     {
         uint pico_address = *out_ptr;
+        hard_assert(pico_address >= (uint)&_eb_memory[0]);
+        hard_assert(pico_address <= ((uint)&_eb_memory[0] + sizeof _eb_memory));
         result = (pico_address - (uint)&_eb_memory) / 2;
         out_ptr++;
         if (out_ptr > &eb_event_queue[EB_EVENT_QUEUE_LEN - 1])
