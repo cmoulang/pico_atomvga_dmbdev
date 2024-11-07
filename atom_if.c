@@ -1,15 +1,15 @@
 #include "atom_if.h"
 
-volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2) _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
+volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2) _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer"))) = {0};
 
 #define EB_EVENT_QUEUE_BITS 7
 #define EB_EVENT_QUEUE_LEN ((1 << EB_EVENT_QUEUE_BITS) / __SIZEOF_INT__)
 
-static _Alignas(1 << EB_EVENT_QUEUE_BITS) uint32_t eb_event_queue[EB_EVENT_QUEUE_LEN];
+static volatile _Alignas(1 << EB_EVENT_QUEUE_BITS) uint32_t eb_event_queue[EB_EVENT_QUEUE_LEN] = {0};
 static PIO eb_pio;
 static uint eb2_address_sm = 0;
 static uint eb2_access_sm = 1;
-static uint eb_event_chan;
+uint eb_event_chan;
 
 static void eb2_address_program_init(PIO pio, uint sm, bool r65c02mode)
 {
@@ -141,7 +141,7 @@ static void eb_setup_dma(PIO pio, int eb2_address_sm,
 
     // Copies address from read_data_chan to write_data_chan
     c = dma_channel_get_default_config(address_chan2);
-    // channel_config_set_high_priority(&c, true);
+    channel_config_set_high_priority(&c, true);
     channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
     channel_config_set_read_increment(&c, false);
     channel_config_set_write_increment(&c, false);
@@ -202,11 +202,6 @@ void eb_shutdown()
     pio_sm_set_enabled(eb_pio, eb2_access_sm, false);
 }
 
-uint eb_get_event_chan()
-{
-    return eb_event_chan;
-}
-
 void eb_set_exclusive_handler(irq_handler_t handler)
 {
     // Tell the DMA to raise IRQ line 1 when the eb_event_chan finishes copying the address
@@ -221,7 +216,7 @@ void eb_set_exclusive_handler(irq_handler_t handler)
 
 int eb_get_event()
 {
-    static uint32_t *out_ptr = eb_event_queue;
+    static volatile uint32_t *out_ptr = &eb_event_queue[0];
     uint32_t *in_ptr = (uint32_t *)dma_channel_hw_addr(eb_event_chan)->write_addr;
 
     int result;
@@ -231,15 +226,14 @@ int eb_get_event()
     }
     else
     {
-        uint pico_address = *out_ptr;
-        hard_assert(pico_address >= (uint)&_eb_memory[0]);
-        hard_assert(pico_address <= ((uint)&_eb_memory[0] + sizeof _eb_memory));
-        result = (pico_address - (uint)&_eb_memory) / 2;
+        result = *out_ptr;
+        assert(result >= (uint)&_eb_memory[0]);
+        assert(result <= ((uint)&_eb_memory[0] + sizeof _eb_memory));
         out_ptr++;
         if (out_ptr > &eb_event_queue[EB_EVENT_QUEUE_LEN - 1])
         {
             // wrap out_ptr
-            out_ptr = eb_event_queue;
+            out_ptr = &eb_event_queue[0];
         }
     }
     return result;

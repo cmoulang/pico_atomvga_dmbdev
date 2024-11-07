@@ -13,27 +13,26 @@
 #define AS_PWM_BITS 11
 #define AS_PWM_WRAP (1 << AS_PWM_BITS)
 
-volatile int fifo_buffer[FIFO_LEN];
-volatile int fifo_in;
-volatile int fifo_out;
+static volatile int max_queue = 0;
+int as_count=0;
 
-static inline bool fifo_get(int *data)
+extern "C" void as_show_status()
 {
-    bool result;
-    if (fifo_in == fifo_out)
+//    printf("%d %d\n", in_count, out_count);
+    printf("max_queue=%d count=%d\n", max_queue, as_count);
+    for (int i=0; i<SID_LEN; i++)
     {
-        result = false;
+        printf("%02x ", eb_get(SID_BASE_ADDR+i));
+        if (((i+1) % 7) == 0) {
+            puts("");
+        }
     }
-    else
-    {
-        *data = fifo_buffer[fifo_out];
-        fifo_out = (fifo_out + 1) % FIFO_LEN;
-        result = true;
-    }
-    return result;
+    puts("");
+    max_queue = 0;
 }
 
 SID *sid16 = NULL;
+queue_t as_q;
 
 static void init_dac()
 {
@@ -53,14 +52,13 @@ static void init_dac()
 
 extern "C" void as_init()
 {
+    queue_init(&as_q, sizeof (as_element_t), AS_Q_LENGTH);
+
     int rate = AS_SAMPLE_RATE;
     int interval = AS_TICK_US;
     puts("INIT SID CALLED - interrupt driven version " __DATE__ " " __TIME__);
     printf("Sample rate: %d/s\n", rate);
     printf("Sample interval: %dus\n", interval);
-
-    fifo_in = 0;
-    fifo_out = 0;
 
     sid16 = new SID();
     // sid16->set_chip_model(MOS8580);
@@ -69,8 +67,8 @@ extern "C" void as_init()
     bool ok = sid16->set_sampling_parameters(C64_CLOCK, SAMPLE_INTERPOLATE, AS_SAMPLE_RATE);
     // bool ok = sid16->set_sampling_parameters(C64_CLOCK, SAMPLE_FAST, AS_SAMPLE_RATE);
     hard_assert(ok);
-
-    sid16->reset();
+    sid16->enable_filter(true);
+    sid16->enable_external_filter(true);
 
     sid16->input(0);
     for (int i=0; i<SID_LEN; i++)
@@ -80,8 +78,11 @@ extern "C" void as_init()
 
     init_dac();
 
-    eb_set_perm(SID_BASE_ADDR, EB_PERM_WRITE_ONLY, 0x19);
-    eb_set_perm(SID_BASE_ADDR + 0x1A, EB_PERM_READ_ONLY, 4);
+
+    eb_set_perm(SID_BASE_ADDR, EB_PERM_WRITE_ONLY, SID_WRITEABLE);
+    eb_set_perm(SID_BASE_ADDR + SID_WRITEABLE, EB_PERM_READ_ONLY, 4);
+    as_update_reg(0x19, 0xFF);
+    as_update_reg(0x1A, 0xFF);
 }
 
 #ifdef DEBUG_SID_DATA
@@ -92,46 +93,26 @@ uint16_t debug_buf[500];
 static inline void do_sample()
 {
     // Output current sample
+    int sz=queue_get_level(&as_q);
+    if (sz > max_queue) {
+        max_queue = sz;
+    }
     int sample = sid16->output(AS_PWM_BITS);
     sample = sample + (1 << (AS_PWM_BITS - 1));
     pwm_set_gpio_level(AS_PIN, sample);
-
-    // process any writes to the SID registers
+    as_element_t el;
     int ticks = AS_TICK_US;
-    int x;
-
-    while (fifo_get(&x))
+    while (queue_try_remove(&as_q, &el))
     {
-#ifdef DEBUG_SID_DATA
-        if (debug_count >= 0)
-        {
-            if (debug_count < sizeof debug_buf / 2)
-            {
-                debug_buf[debug_count++] = x;
-            }
-            else
-            {
-                for (int i = 0; i < sizeof debug_buf / 2; i++)
-                {
-                    printf("%d\n", debug_buf[i]);
-                }
-                debug_count = -1;
-            }
-        }
-#endif
-        int address = (x >> 8) & 0x1F;
-        int data = x & 0xFF;
-        sid16->write(address, data);
-        sid16->clock(1);
+        uint8_t data = el.data;
+        uint8_t reg = eb_6502_addr(el.address) & 0x1F;
+
+        sid16->write(reg, data);
+        sid16->clock();
         ticks--;
     }
-    if (ticks > 0)
-    {
-        sid16->clock(ticks);
-    }
+    sid16->clock(ticks);
     // Update the read-only SID regs
-    as_update_reg(0x19, sid16->read(0x19));
-    as_update_reg(0x1A, sid16->read(0x1A));
     as_update_reg(0x1B, sid16->read(0x1B));
     as_update_reg(0x1C, sid16->read(0x1C));
 }

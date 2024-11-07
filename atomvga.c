@@ -308,23 +308,21 @@ void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, ui
     }
 }
 
-void event_handler()
+void __no_inline_not_in_flash_func(event_handler)()
 {
     dma_hw->ints1 = 1u << eb_get_event_chan();
     int address = eb_get_event();
-    int count = 0;
     while (address > 0)
     {
-        count++;
-        if (address >= SID_BASE_ADDR && address < (SID_BASE_ADDR + SID_LEN))
+        as_count++;
+        if (address >= eb_pico_addr(SID_BASE_ADDR) && address < eb_pico_addr(SID_BASE_ADDR + SID_WRITEABLE))
         {
-            uint8_t x = eb_get(address);
-            as_sid_write(address & 0x1F, x);
+            as_sid_write(address);
         }
-        else if (address == YARRB_REG0)
+        else if (address == eb_pico_addr(YARRB_REG0))
         {
-            uint8_t x = eb_get(address);
-            if ((x & YARRB_4MHZ) && (watchdog_hw->scratch[0] != EB_65C02_MAGIC_NUMBER))
+            uint8_t data = *(uint8_t*)address;
+            if ((data & YARRB_4MHZ) && (watchdog_hw->scratch[0] != EB_65C02_MAGIC_NUMBER))
             {
                 // Stop the 6502 interface, set the magic number and reboot in 65C02 mode
                 eb_shutdown();
@@ -332,10 +330,10 @@ void event_handler()
                 watchdog_enable(1, false);
             }
         }
-        else if (address == VIA_DA)
+        else if (address == eb_pico_addr(VIA_DA))
         {
-            uint8_t x = eb_get(address);
-            at_putchar(x);
+            uint8_t data = *(uint8_t*)address;
+            at_putchar(data);
         }
         address = eb_get_event();
     }
@@ -444,6 +442,8 @@ int atomvga_main(void)
 
     as_run();
 
+    for (;;) {};
+
     for (;;)
     {
         sleep_ms(10);
@@ -474,16 +474,16 @@ void check_command()
         watchdog_hw->scratch[0] = DONT_RESTART;
         watchdog_enable(1, false);
     }
-    else if (is_command("DEBUG", &params))
-    {
-        debug = true;
-        ClearCommand();
-    }
-    else if (is_command("NODEBUG", &params))
-    {
-        debug = false;
-        ClearCommand();
-    }
+    // else if (is_command("DEBUG", &params))
+    // {
+    //     debug = true;
+    //     ClearCommand();
+    // }
+    // else if (is_command("NODEBUG", &params))
+    // {
+    //     debug = false;
+    //     ClearCommand();
+    // }
     else if (is_command("LOWER", &params))
     {
         support_lower = true;
@@ -843,7 +843,7 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
     if (line_num == 0)
     {
         check_command();
-        update_debug_text();
+        //update_debug_text();
         check_reset();
     }
 
@@ -855,7 +855,8 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
 
     // Graphics modes have a coloured border, text modes have a black border
     uint16_t border_colour = (mode & 1) ? palette[0] : 0;
-    uint debug_end = debug ? debug_start + 24 : debug_start;
+    //uint debug_end = debug ? debug_start + 24 : debug_start;
+    uint debug_end = debug_start;
 
     if (relative_line_num < 0 || line_num >= debug_end)
     {
@@ -1179,7 +1180,7 @@ void draw_color_bar_vga80(scanvideo_scanline_buffer_t *buffer)
     if (line_num == 0)
     {
         check_command();
-        update_debug_text();
+        //update_debug_text();
         check_reset();
     }
 

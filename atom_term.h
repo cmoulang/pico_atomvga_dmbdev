@@ -16,7 +16,7 @@ void on_uart_rx()
     {
         int ch = uart_getc(UART_ID) & 0xFF;
         queue_try_add(&at_rxq, &ch);
-        __breakpoint();
+        as_show_status();
     }
 }
 

@@ -28,6 +28,7 @@ extern "C"
 #endif
 
 extern volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2) _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer")));
+extern uint eb_event_chan;
 
 enum eb_perm
 {
@@ -106,6 +107,22 @@ static inline uint32_t eb_get32(uint16_t address)
     return result;
 }
 
+/// @brief calculate pico address from 6502 address
+/// @param address 6502 address
+/// @return the equivalent address in pico memory buffer
+static inline int eb_pico_addr(uint16_t address)
+{
+    return (int)&_eb_memory | (address << 1);
+}
+
+/// @brief calculate 6502 address from pico address
+/// @param address pico address
+/// @return the equivalent address
+static inline uint16_t eb_6502_addr(int address)
+{
+    return (address >> 1) & 0xFFFF;
+}
+
 /// @brief set a byte to a new value
 /// @param address the 6502 address
 /// @param value the new value
@@ -163,7 +180,10 @@ static inline void eb_memset(uint16_t address, char c, size_t size)
 
 /// @brief get the DMA channel that writes to the event queue
 /// @return the DMA channel number
-uint eb_get_event_chan();
+static inline uint eb_get_event_chan()
+{
+    return eb_event_chan;
+}
 
 /*! \brief Set an exclusive iterrupt handler for a 6502 write event
  *
