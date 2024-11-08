@@ -52,7 +52,8 @@ static void init_dac()
 
 extern "C" void as_init()
 {
-    queue_init(&as_q, sizeof (as_element_t), AS_Q_LENGTH);
+    int spinlock = spin_lock_claim_unused(true);
+    queue_init_with_spinlock(&as_q, sizeof (as_element_t), AS_Q_LENGTH, spinlock);
 
     int rate = AS_SAMPLE_RATE;
     int interval = AS_TICK_US;
