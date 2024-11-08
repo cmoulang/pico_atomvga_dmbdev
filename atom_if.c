@@ -1,5 +1,6 @@
 #include "atom_if.h"
 
+
 volatile uint16_t _Alignas(EB_BUFFER_LENGTH * 2) _eb_memory[EB_BUFFER_LENGTH] __attribute__((section(".uninitialized_dma_buffer"))) = {0};
 
 #define EB_EVENT_QUEUE_BITS 7
