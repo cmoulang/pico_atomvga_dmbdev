@@ -1,6 +1,6 @@
 .program genlock
 
-.define PIN_VGA_VSYNC 17
+.define public PIN_VGA_VSYNC 17
 .define public PIN_ATOM_FS   20
 
 // Measure the time between the falling edge of VGA VSync and the falling edge of Atom FS
@@ -25,6 +25,8 @@ dummy:
 // this is a raw helper function for use by the user which sets up the GPIO output, and configures the SM to output on a particular pin
 
 void genlock_program_init(PIO pio, uint sm, uint offset) {
+   pio_gpio_init(pio, genlock_PIN_VGA_VSYNC);
+   pio_gpio_init(pio, genlock_PIN_ATOM_FS);
    pio_sm_config c = genlock_program_get_default_config(offset);
    sm_config_set_jmp_pin(&c, genlock_PIN_ATOM_FS);
    sm_config_set_in_shift(&c, true, true, 32); // shift right, auto-push disabled
