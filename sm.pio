@@ -18,7 +18,7 @@
 .define DATA 0b110
 .define NONE 0b111
 
-.define ADDR_DELAY 11
+.define ADDR_DELAY 12
 
 .program eb2_addr_65C02
 ; calculates a pico address from the 6502's address and pushes it to the DMA channel
