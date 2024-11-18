@@ -32,7 +32,6 @@
 #define YARRB_REG0 0xBFFE
 #define YARRB_4MHZ 0x20
 #define VIA_DA 0xB801
-#define DONT_RESTART 0xC0FFEE
 
 // PIA and frambuffer address moved into platform.h -- PHS
 
@@ -359,16 +358,6 @@ int atomvga_main(void)
     stdio_uart_init();
     printf("Atom VGA built " __DATE__ " " __TIME__ "\r\n");
     stdio_uart_deinit();
-    // Don't restart if watchdog says not to.
-    if (watchdog_hw->scratch[0] == DONT_RESTART)
-    {
-        stdio_uart_init();
-        puts("STOP command received");
-        stdio_uart_deinit();
-        for (;;)
-        {
-        };
-    }
 
     // Set overclock and over voltage if necessary
     uint sys_freq = SYS_FREQ;
@@ -470,9 +459,8 @@ void check_command()
     }
     else if (is_command("STOP", &params))
     {
+        // Stop the atom interface
         eb_shutdown();
-        watchdog_hw->scratch[0] = DONT_RESTART;
-        watchdog_enable(1, false);
     }
     // else if (is_command("DEBUG", &params))
     // {
