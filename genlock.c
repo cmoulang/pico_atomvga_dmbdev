@@ -178,7 +178,7 @@ static void restore_timing_state() {
 
 // Return the time between the Atom VSync and the VGA VSync in us
 // (should be between 0 and ~16666)
-static uint read_vsync_offset() {
+uint read_vsync_offset() {
     // This variable is static so the last result can be returned if the RX Fifo is empty
     static uint result = 0;
     if (!pio_sm_is_rx_fifo_empty(GENLOCK_PIO, GENLOCK_SM)) {

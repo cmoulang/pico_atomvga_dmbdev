@@ -94,10 +94,58 @@ int get_mode()
 #endif
 }
 
+// 
+struct alt_colour_q_elem {
+    absolute_time_t timeout;
+    bool value;
+};
+
+typedef struct alt_colour_q_elem alt_colour_q_elem_t;
+
+queue_t _ac_q;
+volatile int _ac_offset;
+
+/// @brief initialis the alt colour variables
+static void alt_colour_init()
+{
+    queue_init(&_ac_q, sizeof (alt_colour_q_elem_t), 10);
+    _ac_offset = 31500; // Not quite two frames delay
+}
+
+int read_vsync_offset();
+
+/// @brief update the alt colour flag but delayed until the correct line in the next frame
+/// @param data 
+static inline void alt_colour_update(uint8_t data)
+{
+    static bool next_value=false;
+    bool x = (data & 0x8);
+    if (x != next_value)
+    {
+        alt_colour_q_elem_t e;
+        next_value = x;
+        int offset = read_vsync_offset();
+        e.timeout =  make_timeout_time_us(_ac_offset - offset);
+        e.value = x;
+        queue_try_add(&_ac_q, &e);
+    }
+}
+
 static inline bool alt_colour()
 {
 #if (PLATFORM == PLATFORM_ATOM)
-    return !!(eb_get(PIA_ADDR + 2) & 0x8);
+    static bool current_value = false;
+    alt_colour_q_elem_t e;
+    if (queue_try_peek(&_ac_q, &e))
+    {
+        if (get_absolute_time() > e.timeout)
+        {
+            current_value = e.value;
+            queue_remove_blocking(&_ac_q, &e);
+        }
+    }
+    return current_value;
+    //return !!(eb_get(PIA_ADDR + 2) & 0x8);
 #elif (PLATFORM == PLATFORM_DRAGON)
     return (eb_get(PIA_ADDR) & 0x08);
 #endif
@@ -329,6 +377,10 @@ void __no_inline_not_in_flash_func(event_handler)()
                 watchdog_enable(1, false);
             }
         }
+        else if (address == eb_pico_addr(PIA_ADDR + 2))
+        {
+            alt_colour_update(*(uint8_t*)address);
+        }
         else if (address == eb_pico_addr(VIA_DA))
         {
             uint8_t data = *(uint8_t*)address;
@@ -342,6 +394,7 @@ void __no_inline_not_in_flash_func(event_handler)()
 
 int atomvga_main(void)
 {
+    alt_colour_init();
     stdio_uart_init();
     printf("Atom VGA built " __DATE__ " " __TIME__ "\r\n");
     stdio_uart_deinit();
@@ -442,6 +495,15 @@ void check_command()
     {
         eb_set_perm(0xA00, EB_PERM_READ_ONLY, 0x100);
         eb_set_string(0xA00, "ROM DEMO - #A00-#AFF IS NOW     READ ONLY MEMORY CONTROLLED BY  THE PICO\r");
+        ClearCommand();
+    }
+    else if (is_command("FRAME", &params))
+    {
+        temp = 0;
+        if (uint8_param(params, &temp, 0, 100000))
+        {
+            _ac_offset = temp;
+        }
         ClearCommand();
     }
     else if (is_command("STOP", &params))
