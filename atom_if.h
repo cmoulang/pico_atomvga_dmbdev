@@ -193,7 +193,7 @@ static inline uint eb_get_event_chan()
 void eb_set_exclusive_handler(irq_handler_t handler);
 
 /// @brief get the next 6502 address from the event queue
-/// @return 16-bit 6502 address, -1 indicates the queue is empty
+/// @return the pico memory address, -1 indicates the queue is empty
 int eb_get_event();
 
 #ifdef __cplusplus
