@@ -338,23 +338,10 @@ void __no_inline_not_in_flash_func(event_handler)()
     }
 }
 
-void beep()
-{
-    gpio_init(21);
-    gpio_set_dir(21, true);
-    gpio_set_drive_strength(21, GPIO_DRIVE_STRENGTH_12MA);
-    for (int i = 0; i < 50; i++)
-    {
-        sleep_ms(1);
-        gpio_put(21, 0);
-        sleep_ms(1);
-        gpio_put(21, 1);
-    }
-}
+
 
 int atomvga_main(void)
 {
-    beep();
     stdio_uart_init();
     printf("Atom VGA built " __DATE__ " " __TIME__ "\r\n");
     stdio_uart_deinit();

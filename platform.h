@@ -12,8 +12,8 @@
 #define PLATFORM PLATFORM_DRAGON
 #endif
 
-// Maximum memory used by 6847
-#define VID_MEM_SIZE    0x1800
+// Maximum memory used by 6847 (plus 80 column mode)
+#define VID_MEM_SIZE    0x2000
 
 #if (PLATFORM==PLATFORM_ATOM)
 // This base address of the 8255 PIA
