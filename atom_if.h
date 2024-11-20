@@ -14,10 +14,6 @@
 #define EB_ADDRESS_LOW 0x0
 #define EB_65C02_MAGIC_NUMBER 0x65C02
 
-// set to 1 to enable snooping reads to 6502 peripherals
-// NB: not possible with existing mux
-#define EB_CAN_SNOOP 0
-
 #define _EB_WRITE_FLAG 0b010
 #define _EB_READ_FLAG 0b001
 #define _EB_READ_SNOOP_FLAG 0b100
@@ -36,9 +32,7 @@ enum eb_perm
     EB_PERM_READ_ONLY = _EB_READ_FLAG,
     EB_PERM_WRITE_ONLY = _EB_WRITE_FLAG,
     EB_PERM_READ_WRITE = (_EB_WRITE_FLAG | _EB_READ_FLAG),
-#if EB_CAN_SNOOP == 1
     EB_PERM_READ_SNOOP = _EB_READ_SNOOP_FLAG,
-#endif
 };
 
 /// @brief initialise and start the PIO and DMA interface to the 6502 bus

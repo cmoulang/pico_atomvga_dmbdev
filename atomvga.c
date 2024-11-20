@@ -94,7 +94,8 @@ int get_mode()
 #endif
 }
 
-// 
+#if (PLATFORM == PLATFORM_ATOM)
+ 
 struct alt_colour_q_elem {
     absolute_time_t timeout;
     bool value;
@@ -133,7 +134,6 @@ static inline void alt_colour_update(uint8_t data)
 
 static inline bool alt_colour()
 {
-#if (PLATFORM == PLATFORM_ATOM)
     static bool current_value = false;
     alt_colour_q_elem_t e;
     if (queue_try_peek(&_ac_q, &e))
@@ -145,11 +145,14 @@ static inline bool alt_colour()
         }
     }
     return current_value;
-    //return !!(eb_get(PIA_ADDR + 2) & 0x8);
-#elif (PLATFORM == PLATFORM_DRAGON)
-    return (eb_get(PIA_ADDR) & 0x08);
-#endif
 }
+#elif (PLATFORM == PLATFORM_DRAGON)
+static inline bool alt_colour()
+{
+    return (eb_get(PIA_ADDR) & 0x08);
+}
+#endif
+
 
 inline bool is_artifact(uint mode)
 {
@@ -357,6 +360,7 @@ void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, ui
 
 void __no_inline_not_in_flash_func(event_handler)()
 {
+    static u_int64_t reset_time;
     dma_hw->ints1 = 1u << eb_get_event_chan();
     int address = eb_get_event();
     while (address > 0)
@@ -377,10 +381,21 @@ void __no_inline_not_in_flash_func(event_handler)()
                 watchdog_enable(1, false);
             }
         }
+        else if (address == eb_pico_addr(RESET_VEC)) {
+            reset_time = get_absolute_time();
+        }
+        else if (address == eb_pico_addr(RESET_VEC+1)) {
+            if (absolute_time_diff_us(reset_time, get_absolute_time()) < 2ll)
+            {
+                reset_flag = true;
+            }
+        }
+#if (PLATFORM == PLATFORM_ATOM)
         else if (address == eb_pico_addr(PIA_ADDR + 2))
         {
             alt_colour_update(*(uint8_t*)address);
         }
+#endif
         else if (address == eb_pico_addr(VIA_DA))
         {
             uint8_t data = *(uint8_t*)address;
@@ -451,6 +466,8 @@ int atomvga_main(void)
     eb_set_perm_byte(YARRB_REG0, EB_PERM_WRITE_ONLY);
     eb_set_perm(0xF000, EB_PERM_WRITE_ONLY, 0x20);
     eb_set_perm_byte(VIA_DA, EB_PERM_WRITE_ONLY);
+    eb_set_perm_byte(RESET_VEC, EB_PERM_READ_SNOOP);
+    eb_set_perm_byte(RESET_VEC+1, EB_PERM_READ_SNOOP);
     print_perm_range();
 
     // create a semaphore to be posted when video init is complete
@@ -698,6 +715,8 @@ void check_reset(void)
             paper = DEF_PAPER;
             ink_alt = DEF_INK_ALT;
         }
+
+        as_reset();
 
         reset_flag = false;
     }

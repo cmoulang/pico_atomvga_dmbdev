@@ -14,16 +14,17 @@
 #define AS_PWM_WRAP (1 << AS_PWM_BITS)
 
 static volatile int max_queue = 0;
-int as_count=0;
+int as_count = 0;
 
 extern "C" void as_show_status()
 {
-//    printf("%d %d\n", in_count, out_count);
+    //    printf("%d %d\n", in_count, out_count);
     printf("max_queue=%d count=%d\n", max_queue, as_count);
-    for (int i=0; i<SID_LEN; i++)
+    for (int i = 0; i < SID_LEN; i++)
     {
-        printf("%02x ", eb_get(SID_BASE_ADDR+i));
-        if (((i+1) % 7) == 0) {
+        printf("%02x ", eb_get(SID_BASE_ADDR + i));
+        if (((i + 1) % 7) == 0)
+        {
             puts("");
         }
     }
@@ -53,7 +54,7 @@ static void init_dac()
 extern "C" void as_init()
 {
     int spinlock = spin_lock_claim_unused(true);
-    queue_init_with_spinlock(&as_q, sizeof (as_element_t), AS_Q_LENGTH, spinlock);
+    queue_init_with_spinlock(&as_q, sizeof(as_element_t), AS_Q_LENGTH, spinlock);
 
     int rate = AS_SAMPLE_RATE;
     int interval = AS_TICK_US;
@@ -72,13 +73,12 @@ extern "C" void as_init()
     sid16->enable_external_filter(true);
 
     sid16->input(0);
-    for (int i=0; i<SID_LEN; i++)
+    for (int i = 0; i < SID_LEN; i++)
     {
-        sid16->write(i,0);
+        sid16->write(i, 0);
     }
 
     init_dac();
-
 
     eb_set_perm(SID_BASE_ADDR, EB_PERM_WRITE_ONLY, SID_WRITEABLE);
     eb_set_perm(SID_BASE_ADDR + SID_WRITEABLE, EB_PERM_READ_ONLY, 4);
@@ -94,8 +94,9 @@ uint16_t debug_buf[500];
 static inline void do_sample()
 {
     // Output current sample
-    int sz=queue_get_level(&as_q);
-    if (sz > max_queue) {
+    int sz = queue_get_level(&as_q);
+    if (sz > max_queue)
+    {
         max_queue = sz;
     }
     int sample = sid16->output(AS_PWM_BITS);
@@ -105,12 +106,22 @@ static inline void do_sample()
     int ticks = AS_TICK_US;
     while (queue_try_remove(&as_q, &el))
     {
-        uint8_t data = el.data;
-        uint8_t reg = eb_6502_addr(el.address) & 0x1F;
+        if (el.address == 0)
+        {
+            for (int i = 0; i < SID_LEN; i++)
+            {
+                sid16->write(i, 0);
+            }
+        }
+        else
+        {
+            uint8_t data = el.data;
+            uint8_t reg = eb_6502_addr(el.address) & 0x1F;
 
-        sid16->write(reg, data);
-        sid16->clock();
-        ticks--;
+            sid16->write(reg, data);
+            sid16->clock();
+            ticks--;
+        }
     }
     sid16->clock(ticks);
     // Update the read-only SID regs

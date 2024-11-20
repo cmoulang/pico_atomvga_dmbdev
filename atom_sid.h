@@ -23,6 +23,16 @@ extern "C"
     extern int as_count;
 
     void as_init();
+
+    /// @brief reset the SID - so it stops making a noise
+    static inline void as_reset()
+    {
+        as_element_t el;
+        el.address = 0;
+        el.data = 0;
+        queue_add_blocking(&as_q, &el);
+    }
+
     void as_run();
 
     void as_show_status();

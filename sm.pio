@@ -101,5 +101,7 @@ read:
 ; so we can't snoop the data bus when the 6502 reads from a peripheral
 snoop:                                   
         out     y, 1
-        jmp     write
+        out     y, 1                     ; get the snoop flag
+        jmp     !y, loop                 ; jmp if no snoop on this address
+        in      null 8
 .wrap
