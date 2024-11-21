@@ -360,7 +360,7 @@ void set_sys_clock_pll_refdiv(uint refdiv, uint32_t vco_freq, uint post_div1, ui
 
 void __no_inline_not_in_flash_func(event_handler)()
 {
-    static u_int64_t reset_time;
+    static absolute_time_t reset_timeout;
     dma_hw->ints1 = 1u << eb_get_event_chan();
     int address = eb_get_event();
     while (address > 0)
@@ -382,10 +382,10 @@ void __no_inline_not_in_flash_func(event_handler)()
             }
         }
         else if (address == eb_pico_addr(RESET_VEC)) {
-            reset_time = get_absolute_time();
+            reset_timeout = make_timeout_time_us(2);
         }
         else if (address == eb_pico_addr(RESET_VEC+1)) {
-            if (absolute_time_diff_us(reset_time, get_absolute_time()) < 2ll)
+            if (get_absolute_time() < reset_timeout)
             {
                 reset_flag = true;
             }
