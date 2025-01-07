@@ -1,3 +1,23 @@
+/*
+
+Copyright 2021-2025 David Banks
+
+This file is part of AtomVgaSid
+
+AtomVgaSid is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+AtomVgaSid is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+AtomVgaSid. If not, see <https://www.gnu.org/licenses/>.
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "pico/scanvideo.h"
@@ -244,6 +264,14 @@ static void common_process_line(genlock_t *genlock, int line) {
 // Public interface
 // ======================================================================
 
+
+// Load PIO state machine to track the offset between VGA VS and Atom FS
+void genlock_initialize_pio() {
+    uint offset = pio_add_program(GENLOCK_PIO, &genlock_program);
+    genlock_program_init(GENLOCK_PIO, GENLOCK_SM, offset);
+    pio_sm_set_enabled(GENLOCK_PIO, GENLOCK_SM, true);
+}
+
 void genlock_initialize() {
     // Populate Mode 4 from Mode 3 (it's a tiny change)
     genlock_implementations[4] = genlock_implementations[3];
@@ -254,9 +282,7 @@ void genlock_initialize() {
     genlock_implementations[5].mode = 5;
     genlock_implementations[5].update = vary_vtotal_mode5_update;
     // Load PIO state machine to track the offset between VGA VS and Atom FS
-    uint offset = pio_add_program(GENLOCK_PIO, &genlock_program);
-    genlock_program_init(GENLOCK_PIO, GENLOCK_SM, offset);
-    pio_sm_set_enabled(GENLOCK_PIO, GENLOCK_SM, true);
+    genlock_initialize_pio();
     // Read original "safe" value of clkdiv
     original_clkdiv = SCANVIDEO_PIO->sm[SCANVIDEO_SCANLINE_SM].clkdiv >> PIO_SM0_CLKDIV_FRAC_LSB;
 }

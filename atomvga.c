@@ -1,8 +1,22 @@
 /*
- * Copyright (c) 2021 Raspberry Pi (Trading) Ltd.
- *
- * SPDX-License-Identifier: BSD-3-Clause
- */
+
+Copyright 2021-2025 Chris Moulang, David Banks, Phill Harvey-Smith
+
+This file is part of AtomVgaSid
+
+AtomVgaSid is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+AtomVgaSid is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+AtomVgaSid. If not, see <https://www.gnu.org/licenses/>.
+
+*/
 #include "atom_if.h"
 #include "atom_sid.h"
 #include "atom_term.h"
@@ -47,10 +61,8 @@ static genlock_mode_t genlock_setting = GENLOCK_OFF;
 
 #else
 
-// GENLOCK code not included, default to Chris's original clock of 250MHz
-
+// GENLOCK code not included, default to original clock
 #define vga_mode vga_mode_640x480_60
-
 #define SYS_FREQ 250000
 
 #endif
@@ -428,6 +440,9 @@ int atomvga_main(void)
 #endif
 
     stdio_uart_init();
+    uint sys_freq_hz=clock_get_hz(clk_sys);
+    printf("System clock = %d\n", sys_freq_hz);
+
 
     switch_font(DEFAULT_FONT);
 
