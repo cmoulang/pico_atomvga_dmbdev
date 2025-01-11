@@ -1,5 +1,7 @@
 /*
 
+PIO/DMA interface to the 6502 bus
+
 Copyright 2021-2025 Chris Moulang
 
 This file is part of AtomVgaSid

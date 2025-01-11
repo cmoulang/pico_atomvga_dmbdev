@@ -1,6 +1,10 @@
 /*
 
-Copyright 2021-2025 Chris Moulang, David Banks, Phill Harvey-Smith
+Main program
+
+Copyright 2021-2025 Chris Moulang
+Dragon/Coco support by Phill Harvey-Smith
+Godil 80 column and genlock support by David Banks
 
 This file is part of AtomVgaSid
 
@@ -1088,6 +1092,7 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
 
         // Add right border
         p = add_border(p, border_colour, horizontal_offset);
+
     }
 
     // black pixel to end line
@@ -1106,8 +1111,6 @@ void draw_color_bar(scanvideo_scanline_buffer_t *buffer)
 
     buffer->data_used = ((uint32_t *)p) - buffer->data;
     assert(buffer->data_used < buffer->data_max);
-
-    buffer->status = SCANLINE_OK;
 }
 
 void reset_vga80()

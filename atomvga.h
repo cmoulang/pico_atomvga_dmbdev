@@ -1,6 +1,8 @@
 /*
 
-Copyright 2021-2025 Chris Moulang, David Banks, Phill Harvey-Smith
+Copyright 2021-2025 Chris Moulang
+Dragon/Coco support by Phill Harvey-Smith
+Godil 80 column and genlock support by David Banks
 
 This file is part of AtomVgaSid
 

@@ -1,8 +1,9 @@
 /*
 
-  platform.h Defines dependent on target platform.
+platform.h Defines dependent on target platform.
 
-Copyright 2021-2025 Chris Moulang, David Banks, Phill Harvey-Smith
+Copyright 2021-2025 Chris Moulang
+Dragon/Coco support by Phill Harvey-Smith
 
 This file is part of AtomVgaSid
 

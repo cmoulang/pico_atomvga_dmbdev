@@ -1,6 +1,9 @@
 /*
 
-Copyright 2021-2025 Chris Moulang, David Banks, Phill Harvey-Smith
+font data
+
+Copyright 2021-2025 Chris Moulang
+additional fonts by David Banks, Phill Harvey-Smith
 
 This file is part of AtomVgaSid
 

@@ -1,6 +1,9 @@
 /*
 
-Copyright 2021-2025 David Banks
+genlock implentation
+
+Copyright 2021-2025 Chris Moulang
+genlock implementation by David Banks
 
 This file is part of AtomVgaSid
 
