@@ -2,7 +2,7 @@
 
 This repository contains the firmware for the AtomVgaSid project for the Acorn ATOM micro. It does two things:
 
-1. Provides VGA output for the Acorn ATOM. This emulates the MC6847 VDG chip and supports all of the original ATOM text and graphics modes plus a number of different fonts inlcuding lower case and a rather useful 80 column mode.
+1. Provides VGA output for the Acorn ATOM. This emulates the MC6847 VDG chip and supports all of the original ATOM text and graphics modes plus a number of different fonts including lower case and a rather useful 80 column mode.
 
 2. Provides a SID emulation. The Commodore 64 SID was never part of the Acorn ATOM but various later expansion boards added the ability to drive a SID chip. There is also a Godil based FPGA implementation of a SID.  
 
