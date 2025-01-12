@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Chris Moulang, David Banks, Phill Harvey-Smith
+# Copyright 2021-2025 Chris Moulang
 # 
 # This file is part of AtomVgaSid
 # 

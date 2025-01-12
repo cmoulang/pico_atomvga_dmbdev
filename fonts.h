@@ -2,8 +2,11 @@
 
 font data
 
-Copyright 2021-2025 Chris Moulang
 additional fonts by David Banks, Phill Harvey-Smith
+
+Copyright 2021 Chris Moulang 
+
+Font data from Atomulator v1.0 - original copyright Tom Walker - GPL2
 
 This file is part of AtomVgaSid
 

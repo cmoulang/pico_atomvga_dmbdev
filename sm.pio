@@ -3,7 +3,6 @@
 PIO/DMA 6502 bus interface
 
 Copyright 2021-2025 Chris Moulang
-65C02 timing by David Banks
 
 This file is part of AtomVgaSid
 

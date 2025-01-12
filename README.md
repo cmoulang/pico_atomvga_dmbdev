@@ -2,20 +2,25 @@
 
 This repository contains the firmware for the AtomVgaSid project for the Acorn ATOM micro. It does two things:
 
-1. Provides VGA output for the Acorn ATOM. This supports all of the orignal ATOM video modes plus a number of different fonts inlcuding lower case and a rather useful 80 column mode.
+1. Provides VGA output for the Acorn ATOM. This emulates the MC6847 VDG chip and supports all of the orignal ATOM text and graphics modes plus a number of different fonts inlcuding lower case and a rather useful 80 column mode.
 
 2. Provides a SID emulation. The Commodore 64 SID was never part of the Acorn ATOM but various later expansion boards added the ability to drive a SID chip. There is also a Godil based FPGA implementation of a SID.  
 
-It works by snooping writes to the ATOM's video memory to capture the data and uses the pico scanvideo library to generate the video signal.
-The SID emulation is provided by the reSID library <https://en.wikipedia.org/wiki/ReSID>
+AtomVgaSid works by snooping writes to the ATOM's memory to mirror the data to the pico's and uses the pico scanvideo library to generate the video signal.
 
-### Hardware Overview
+The SID emulation is provided by the reSID library <https://en.wikipedia.org/wiki/ReSID>
 
 This is the schematic from April 2021 for version 1 of the VGA board. The firmware runs on the Raspberry Pi Pico 2.
 
+![version 1 ATOM VGA Board](./media/schematic.png)
+
+## Hardware Overview
+
 #### ATOM Bus Interface
 
-The board connects to the ATOM extension bus PL6/7**. IC4 in the ATOM needs to be bypassed to access all addresses.
+The board connects to the ATOM extension bus PL6/7 via J1**.
+
+The data address buffer IC4 in the ATOM needs to be bypassed to allow access to all addresses. This can be done with wire links or a custom PCB. This is the only modification required to the ATOM.
 
 PL6/7 provides the power for the board and allows it to access to the address bus a0-a15, the data bus d0-d7, read-not-write R_NW, clock PHI2 and nRDS. Not shown is an important later modification that connects the DIR pin on U4 to nRDS on the 6502 bus. This enables the pico to support 6502 reads.
 
@@ -36,5 +41,4 @@ The main difference is that the AtomVgaSid board provides 2 bits per pixel so th
 A later addition - so not shown - the SID analogue audio output is provided using PWM on GPIO pin 21. The audio filter is based on the PWM audio from  <https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf>
 
 
-![alt text](./media/schematic.png)
 

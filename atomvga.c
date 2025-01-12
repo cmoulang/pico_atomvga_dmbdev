@@ -2,9 +2,10 @@
 
 Main program
 
-Copyright 2021-2025 Chris Moulang
-Dragon/Coco support by Phill Harvey-Smith
+6809 Dragon/Coco support by Phill Harvey-Smith
 Godil 80 column and genlock support by David Banks
+
+Copyright 2021-2025 Chris Moulang
 
 This file is part of AtomVgaSid
 
